@@ -83,7 +83,7 @@ module MentaLabs::TicTacToe {
     }
 
     #[test(player_one = @0x111, player_two = @0x222)]
-    #[expected_failure]
+    #[expected_failure(abort_code = 524303)]
     public entry fun cant_start_twice(player_one: signer, player_two: signer) {
         let player_two_addr = signer::address_of(&player_two);
         publish_game(&player_one, player_two_addr);
