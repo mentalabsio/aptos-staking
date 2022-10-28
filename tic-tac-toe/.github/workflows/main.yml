@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+     - uses: actions/checkout@master
+     - name: Checkout move repo
+       uses: actions/checkout@master
+       with:
+        repository: move-language/move
+        path: ./move
+
+     - name: Setup
+       run: |
+         cd move
+         ./scripts/dev_setup.sh -ybpt
+         source ~/.profile
+         cargo install --path language/tools/move-cli
+
+     - name: Build
+       run: move build
+
+     - name: Test
+       run: move test
+
+     - name: Prove
+       run: |
+         source ~/.profile
+         move prove
