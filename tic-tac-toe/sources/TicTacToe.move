@@ -71,13 +71,13 @@ module MentaLabs::TicTacToe {
         let player_one_addr = signer::address_of(&player_one);
         let player_two_addr = signer::address_of(&player_two);
 
+        let seeds = create_seeds(vector[player_one_addr, player_two_addr]);
+        let game = account::create_resource_address(&player_one_addr, seeds);
+        assert!(!exists<Game>(game), EGAME_EXISTS);
+
         publish_game(&player_one, player_two_addr);
 
         assert!(exists<GameChangeEvent>(player_one_addr), error::not_found(EACCOUNT_NOT_FOUND));
-
-        let seeds = create_seeds(vector[player_one_addr, player_two_addr]);
-        let game = account::create_resource_address(&player_one_addr, seeds);
-
         assert!(exists<Game>(game), error::not_found(EACCOUNT_NOT_FOUND));
         assert!(borrow_global<Game>(game).turn == 0, 1);
     }
