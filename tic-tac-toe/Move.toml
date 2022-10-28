@@ -8,4 +8,4 @@ rev = 'main'
 subdir = 'aptos-move/framework/aptos-framework'
 
 [addresses]
-MentaLabs = "0x42"
+MentaLabs = "_"
