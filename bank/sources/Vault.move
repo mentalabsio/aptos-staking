@@ -46,13 +46,7 @@ module MentaLabs::Bank {
     }
 
     /// Get an user's vault for a specific TokenId.
-    public fun get_vault(owner: &address, token_id: token::TokenId): Option<Lock>
-        acquires Bank
-    {
-        let bank_address = get_bank_address(owner);
-        assert!(exists<Bank>(bank_address), error::not_found(ERESOURCE_DNE));
-
-        let bank = borrow_global<Bank>(bank_address);
+    public fun get_vault(bank: &Bank, token_id: token::TokenId): Option<Lock> {
         if (table::contains(&bank.vaults, token_id)) {
             option::some(*table::borrow(&bank.vaults, token_id))
         } else {
@@ -64,9 +58,8 @@ module MentaLabs::Bank {
         acquires Bank
     {
         let addr = signer::address_of(account);
-        let token_vault = get_vault(&addr, token_id);
-
         let bank_address = get_bank_address(&addr);
+        let token_vault = get_vault(borrow_global<Bank>(bank_address), token_id);
         let bank = borrow_global_mut<Bank>(bank_address);
 
         if (option::is_none(&token_vault)) {
@@ -85,7 +78,6 @@ module MentaLabs::Bank {
 
         token::direct_transfer(account, &bank_signer, token_id, amount);
     }
-
 
     #[test_only]
     public entry fun create_token(creator: &signer, amount: u64): token::TokenId {
@@ -166,12 +158,10 @@ module MentaLabs::Bank {
         );
         assert!(user_balance == 0, 0);
 
-        let token_vault = get_vault(&signer::address_of(&account), token_id);
+        let bank_ref = borrow_global<Bank>(bank_address);
+        let token_vault = get_vault(bank_ref, token_id);
+
         assert!(option::is_some(&token_vault), 0);
         assert!(!option::borrow(&token_vault).locked, 0);
-    }
-
-    public entry fun withdraw(_account: &signer, _amount: u64) {
-        abort error::not_implemented(0)
     }
 }
