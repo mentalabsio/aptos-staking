@@ -20,7 +20,8 @@ module MentaLabs::Bank {
     /// Error codes.
     const EALREADY_EXISTS: u64 = 0;
     const EVAULT_LOCKED: u64 = 1;
-    const ERESOURCE_DNE: u64 = 2;
+    const EVAULT_DNE: u64 = 2;
+    const ERESOURCE_DNE: u64 = 3;
 
     /// Seeds.
     const BANK_SEED: vector<u8> = b"vault";
@@ -45,9 +46,13 @@ module MentaLabs::Bank {
         });
     }
 
+    public fun has_vault(bank: &Bank, token_id: token::TokenId): bool {
+        table::contains(&bank.vaults, token_id)
+    }
+
     /// Get an user's vault for a specific TokenId.
     public fun get_vault(bank: &Bank, token_id: token::TokenId): Option<Lock> {
-        if (table::contains(&bank.vaults, token_id)) {
+        if (has_vault(bank, token_id)) {
             option::some(*table::borrow(&bank.vaults, token_id))
         } else {
             option::none()
@@ -77,6 +82,27 @@ module MentaLabs::Bank {
         );
 
         token::direct_transfer(account, &bank_signer, token_id, amount);
+    }
+
+    public entry fun lock_vault(
+        account: &signer,
+        token_id: token::TokenId,
+        duration: u64
+    ) acquires Bank {
+        let addr = signer::address_of(account);
+        let bank_address = get_bank_address(&addr);
+        let bank_ref = borrow_global<Bank>(bank_address);
+        assert!(has_vault(bank_ref, token_id), error::not_found(EVAULT_DNE));
+
+        let bank_mut = borrow_global_mut<Bank>(bank_address);
+        let lock_mut = table::borrow_mut(&mut bank_mut.vaults, token_id);
+
+        assert!(!(*lock_mut).locked, EVAULT_LOCKED);
+
+        *lock_mut = Lock {
+            locked: true,
+            duration,
+        };
     }
 
     #[test_only]
@@ -143,7 +169,7 @@ module MentaLabs::Bank {
     }
 
     #[test(account = @0x111)]
-    public entry fun test_deposit_token(account: signer) acquires Bank {
+    public entry fun test_deposit_and_lock(account: signer) acquires Bank {
         let token_id = setup_and_create_token(&account);
 
         deposit(&account, token_id, 1);
@@ -160,8 +186,13 @@ module MentaLabs::Bank {
 
         let bank_ref = borrow_global<Bank>(bank_address);
         let token_vault = get_vault(bank_ref, token_id);
-
         assert!(option::is_some(&token_vault), 0);
         assert!(!option::borrow(&token_vault).locked, 0);
+
+        lock_vault(&account, token_id, 30);
+
+        let bank_ref = borrow_global<Bank>(bank_address);
+        let token_vault = get_vault(bank_ref, token_id);
+        assert!(option::borrow(&token_vault).locked, 0);
     }
 }
