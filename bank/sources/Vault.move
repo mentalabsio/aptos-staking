@@ -1,4 +1,4 @@
-module MentaLabs::Vault {
+module MentaLabs::Bank {
     use std::error;
     use std::signer;
     use std::option::{Self, Option};
@@ -6,103 +6,85 @@ module MentaLabs::Vault {
     use aptos_framework::account;
     use aptos_token::token;
 
-    struct VaultData has store, copy, drop {
-        locktime: u64,
+    struct Lock has store, copy, drop {
+        duration: u64,
         locked: bool,
     }
 
-    /// Vault:
     /// Locks a fixed amount of tokens for a period of time.
-    struct Vault has key {
-        vaults: Table<token::TokenId, VaultData>,
+    struct Bank has key {
+        vaults: Table<token::TokenId, Lock>,
         sign_cap: account::SignerCapability,
     }
 
-    struct UserVault has key {
-        resource: address,
-    }
-
     /// Error codes.
-    const EVAULT_EXISTS: u64 = 0;
+    const EALREADY_EXISTS: u64 = 0;
     const EVAULT_LOCKED: u64 = 1;
     const ERESOURCE_DNE: u64 = 2;
 
     /// Seeds.
-    const VAULT_SEED: vector<u8> = b"vault";
+    const BANK_SEED: vector<u8> = b"vault";
+
+    public fun get_bank_address(owner: &address): address {
+        account::create_resource_address(owner, BANK_SEED)
+    }
 
     /// Create a new resource account holding a zeroed vault.
     public entry fun publish_vault(account: &signer) {
-        let addr = signer::address_of(account);
-
-        assert!(!exists<UserVault>(addr), EVAULT_EXISTS);
-
         let (resource, sign_cap) =
-            account::create_resource_account(account, VAULT_SEED);
+            account::create_resource_account(account, BANK_SEED);
 
         assert!(
-            !exists<Vault>(signer::address_of(&resource)),
-            error::already_exists(EVAULT_EXISTS)
+            !exists<Bank>(signer::address_of(&resource)),
+            error::already_exists(EALREADY_EXISTS)
         );
 
-        move_to(&resource, Vault {
+        move_to(&resource, Bank {
             vaults: table::new(),
             sign_cap,
-        });
-
-        move_to(account, UserVault {
-            resource: signer::address_of(&resource),
         });
     }
 
     /// Get an user's vault for a specific TokenId.
-    public fun get_vault(owner: address, token_id: token::TokenId):
-        Option<VaultData>
-        acquires UserVault, Vault
+    public fun get_vault(owner: &address, token_id: token::TokenId): Option<Lock>
+        acquires Bank
     {
-        assert!(exists<UserVault>(owner), error::not_found(ERESOURCE_DNE));
-        let vault_addr = borrow_global<UserVault>(owner).resource;
-        assert!(exists<Vault>(vault_addr), error::not_found(ERESOURCE_DNE));
+        let bank_address = get_bank_address(owner);
+        assert!(exists<Bank>(bank_address), error::not_found(ERESOURCE_DNE));
 
-        let vault_acc = borrow_global<Vault>(vault_addr);
-        if (table::contains(&vault_acc.vaults, token_id)) {
-            option::some(*table::borrow(&vault_acc.vaults, token_id))
+        let bank = borrow_global<Bank>(bank_address);
+        if (table::contains(&bank.vaults, token_id)) {
+            option::some(*table::borrow(&bank.vaults, token_id))
         } else {
             option::none()
         }
     }
 
     public entry fun deposit(account: &signer, token_id: token::TokenId, amount: u64)
-        acquires UserVault, Vault
-        {
-            let addr = signer::address_of(account);
-            let token_vault = get_vault(addr, token_id);
+        acquires Bank
+    {
+        let addr = signer::address_of(account);
+        let token_vault = get_vault(&addr, token_id);
 
-            if (option::is_none(&token_vault)) {
-                let vault_addr = borrow_global<UserVault>(addr).resource;
-                let acc = borrow_global_mut<Vault>(vault_addr);
-                table::add(
-                    &mut acc.vaults,
-                    token_id,
-                    VaultData {
-                        locktime: 0,
-                        locked: false,
-                    }
-                );
-            } else {
-                let token_vault = option::borrow(&token_vault);
-                assert!(!token_vault.locked, EVAULT_LOCKED);
-            };
+        let bank_address = get_bank_address(&addr);
+        let bank = borrow_global_mut<Bank>(bank_address);
 
-            let vault_addr = borrow_global<UserVault>(addr).resource;
-            assert!(exists<Vault>(vault_addr), error::not_found(ERESOURCE_DNE));
-            let vault_acc = borrow_global<Vault>(vault_addr);
+        if (option::is_none(&token_vault)) {
+            table::add(&mut bank.vaults, token_id, Lock {
+                duration: 0,
+                locked: false,
+            });
+        } else {
+            let token_vault = option::borrow(&token_vault);
+            assert!(!token_vault.locked, EVAULT_LOCKED);
+        };
 
-            let resource_sig = account::create_signer_with_capability(
-                &vault_acc.sign_cap
-            );
+        let bank_signer = account::create_signer_with_capability(
+            &bank.sign_cap
+        );
 
-            token::direct_transfer(account, &resource_sig, token_id, amount);
-        }
+        token::direct_transfer(account, &bank_signer, token_id, amount);
+    }
 
 
     #[test_only]
@@ -156,36 +138,27 @@ module MentaLabs::Vault {
     }
 
     #[test_only]
-    public entry fun setup_and_create_token(account: &signer): token::TokenId
-        acquires UserVault
-    {
+    public entry fun setup_and_create_token(account: &signer): token::TokenId {
         let addr = signer::address_of(account);
         aptos_framework::account::create_account_for_test(addr);
 
         publish_vault(account);
 
-        assert!(exists<UserVault>(addr), error::not_found(ERESOURCE_DNE));
-
-        let res_address = borrow_global<UserVault>(addr).resource;
-        assert!(exists<Vault>(res_address), error::not_found(ERESOURCE_DNE));
+        let bank_addr = get_bank_address(&addr);
+        assert!(exists<Bank>(bank_addr), error::not_found(ERESOURCE_DNE));
 
         create_token(account, 1)
     }
 
     #[test(account = @0x111)]
-    public entry fun test_deposit_token(account: signer)
-        acquires UserVault, Vault
-    {
+    public entry fun test_deposit_token(account: signer) acquires Bank {
         let token_id = setup_and_create_token(&account);
 
         deposit(&account, token_id, 1);
 
-        let vault_address = borrow_global<UserVault>(
-            signer::address_of(&account)
-        ).resource;
-
-        let vault_balance = token::balance_of(vault_address, token_id);
-        assert!(vault_balance == 1, 0);
+        let bank_address = get_bank_address(&signer::address_of(&account));
+        let bank_balance = token::balance_of(bank_address, token_id);
+        assert!(bank_balance == 1, 0);
 
         let user_balance = token::balance_of(
             signer::address_of(&account),
@@ -193,7 +166,7 @@ module MentaLabs::Vault {
         );
         assert!(user_balance == 0, 0);
 
-        let token_vault = get_vault(signer::address_of(&account), token_id);
+        let token_vault = get_vault(&signer::address_of(&account), token_id);
         assert!(option::is_some(&token_vault), 0);
         assert!(!option::borrow(&token_vault).locked, 0);
     }
