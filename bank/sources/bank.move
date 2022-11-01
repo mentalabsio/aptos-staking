@@ -3,17 +3,19 @@ module MentaLabs::Bank {
     use std::signer;
     use std::option::{Self, Option};
     use std::table::{Self, Table};
-    use aptos_framework::account;
     use aptos_token::token;
+    use aptos_framework::account;
+    use aptos_framework::timestamp;
 
-    struct Lock has store, copy, drop {
-        duration: u64,
+    struct Vault has store, copy, drop {
         locked: bool,
+        duration: u64,
+        start_ts: Option<u64>,
     }
 
-    /// Locks a fixed amount of tokens for a period of time.
+    /// Vaults a fixed amount of tokens for a period of time.
     struct Bank has key {
-        vaults: Table<token::TokenId, Lock>,
+        vaults: Table<token::TokenId, Vault>,
         sign_cap: account::SignerCapability,
     }
 
@@ -51,7 +53,7 @@ module MentaLabs::Bank {
     }
 
     /// Get an user's vault for a specific TokenId.
-    public fun get_vault(bank: &Bank, token_id: token::TokenId): Option<Lock> {
+    public fun get_vault(bank: &Bank, token_id: token::TokenId): Option<Vault> {
         if (has_vault(bank, token_id)) {
             option::some(*table::borrow(&bank.vaults, token_id))
         } else {
@@ -68,9 +70,10 @@ module MentaLabs::Bank {
         let bank = borrow_global_mut<Bank>(bank_address);
 
         if (option::is_none(&token_vault)) {
-            table::add(&mut bank.vaults, token_id, Lock {
+            table::add(&mut bank.vaults, token_id, Vault {
                 duration: 0,
                 locked: false,
+                start_ts: option::none(),
             });
         } else {
             let token_vault = option::borrow(&token_vault);
@@ -95,13 +98,14 @@ module MentaLabs::Bank {
         assert!(has_vault(bank_ref, token_id), error::not_found(EVAULT_DNE));
 
         let bank_mut = borrow_global_mut<Bank>(bank_address);
-        let lock_mut = table::borrow_mut(&mut bank_mut.vaults, token_id);
+        let vault_mut = table::borrow_mut(&mut bank_mut.vaults, token_id);
 
-        assert!(!(*lock_mut).locked, EVAULT_LOCKED);
+        assert!(!(*vault_mut).locked, EVAULT_LOCKED);
 
-        *lock_mut = Lock {
-            locked: true,
+        *vault_mut = Vault {
             duration,
+            locked: true,
+            start_ts: option::some(timestamp::now_seconds()),
         };
     }
 
@@ -156,9 +160,13 @@ module MentaLabs::Bank {
     }
 
     #[test_only]
-    public entry fun setup_and_create_token(account: &signer): token::TokenId {
+    public entry fun setup_and_create_token(
+        account: &signer,
+        core_framework: &signer
+    ): token::TokenId {
         let addr = signer::address_of(account);
         aptos_framework::account::create_account_for_test(addr);
+        timestamp::set_time_has_started_for_testing(core_framework);
 
         publish_vault(account);
 
@@ -168,29 +176,43 @@ module MentaLabs::Bank {
         create_token(account, 1)
     }
 
-    #[test(account = @0x111)]
-    public entry fun test_deposit_and_lock(account: signer) acquires Bank {
-        let token_id = setup_and_create_token(&account);
+    #[test(account = @0x111, core_framework = @aptos_framework)]
+    public entry fun test_deposit(
+        account: signer,
+        core_framework: signer
+    ) acquires Bank {
+        let token_id = setup_and_create_token(&account, &core_framework);
 
         deposit(&account, token_id, 1);
 
         let bank_address = get_bank_address(&signer::address_of(&account));
+        let user_address = signer::address_of(&account);
+
         let bank_balance = token::balance_of(bank_address, token_id);
         assert!(bank_balance == 1, 0);
 
-        let user_balance = token::balance_of(
-            signer::address_of(&account),
-            token_id
-        );
+        let user_balance = token::balance_of(user_address, token_id);
         assert!(user_balance == 0, 0);
 
         let bank_ref = borrow_global<Bank>(bank_address);
         let token_vault = get_vault(bank_ref, token_id);
         assert!(option::is_some(&token_vault), 0);
         assert!(!option::borrow(&token_vault).locked, 0);
+    }
 
-        lock_vault(&account, token_id, 30);
+    #[test(account = @0x111, core_framework = @aptos_framework)]
+    public entry fun test_lock(
+        account: signer,
+        core_framework: signer
+    ) acquires Bank {
+        let token_id = setup_and_create_token(&account, &core_framework);
+        deposit(&account, token_id, 1);
 
+        // Lock for 30 days.
+        let lock_duration = 30 * 86400;
+        lock_vault(&account, token_id, lock_duration);
+
+        let bank_address = get_bank_address(&signer::address_of(&account));
         let bank_ref = borrow_global<Bank>(bank_address);
         let token_vault = get_vault(bank_ref, token_id);
         assert!(option::borrow(&token_vault).locked, 0);
