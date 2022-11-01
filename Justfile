@@ -9,9 +9,9 @@ default:
 	@just --choose
 
 build package=".": (_aptos-move "compile" package)
-test package=".": (_aptos-move "test" package)
-prove package=".": (_aptos-move "prove" package)
-publish package=".": (_aptos-move "publish" package)
+test package=".": (build package) (_aptos-move "test" package)
+prove package=".": (build package) (_aptos-move "prove" package)
+publish package=".": (build package) (_aptos-move "publish" package)
 
 _aptos-move CMD PACKAGE_DIR:
 	aptos move {{CMD}} \
