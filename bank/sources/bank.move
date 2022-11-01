@@ -28,11 +28,10 @@ module MentaLabs::Bank {
     /// Seeds.
     const BANK_SEED: vector<u8> = b"vault";
 
-    public fun get_bank_address(owner: &address): address {
-        account::create_resource_address(owner, BANK_SEED)
-    }
+    /// Instruction handlers:
 
     /// Create a new resource account holding a zeroed vault.
+    /// Aborts if the bank already exists.
     public entry fun publish_vault(account: &signer) {
         let (resource, sign_cap) =
             account::create_resource_account(account, BANK_SEED);
@@ -48,19 +47,8 @@ module MentaLabs::Bank {
         });
     }
 
-    public fun has_vault(bank: &Bank, token_id: token::TokenId): bool {
-        table::contains(&bank.vaults, token_id)
-    }
-
-    /// Get an user's vault for a specific TokenId.
-    public fun get_vault(bank: &Bank, token_id: token::TokenId): Option<Vault> {
-        if (has_vault(bank, token_id)) {
-            option::some(*table::borrow(&bank.vaults, token_id))
-        } else {
-            option::none()
-        }
-    }
-
+    /// Deposits token into the vault, without locking it.
+    /// Aborts if the bank or the vault does not exist.
     public entry fun deposit(account: &signer, token_id: token::TokenId, amount: u64)
         acquires Bank
     {
@@ -87,6 +75,8 @@ module MentaLabs::Bank {
         token::direct_transfer(account, &bank_signer, token_id, amount);
     }
 
+    /// Locks a bank's vault.
+    /// Aborts if the bank or the vault does not exist or if the vault is locked.
     public entry fun lock_vault(
         account: &signer,
         token_id: token::TokenId,
@@ -217,4 +207,28 @@ module MentaLabs::Bank {
         let token_vault = get_vault(bank_ref, token_id);
         assert!(option::borrow(&token_vault).locked, 0);
     }
+
+    /// Helper functions
+
+    /// Get a user's bank address.
+    /// This function does not check if the bank exists.
+    public fun get_bank_address(owner: &address): address {
+        account::create_resource_address(owner, BANK_SEED)
+    }
+
+    /// Check if a bank has a vault for a token id.
+    public fun has_vault(bank: &Bank, token_id: token::TokenId): bool {
+        table::contains(&bank.vaults, token_id)
+    }
+
+    /// Get an user's vault for a specific TokenId.
+    public fun get_vault(bank: &Bank, token_id: token::TokenId): Option<Vault> {
+        if (has_vault(bank, token_id)) {
+            option::some(*table::borrow(&bank.vaults, token_id))
+        } else {
+            option::none()
+        }
+    }
+
+
 }
