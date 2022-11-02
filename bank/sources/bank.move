@@ -55,7 +55,10 @@ module MentaLabs::Bank {
     {
         let addr = signer::address_of(account);
         let bank_address = get_bank_address(&addr);
-        let token_vault = get_vault(borrow_global<Bank>(bank_address), token_id);
+
+        assert_bank_exists(&addr);
+
+        let token_vault = try_get_vault(borrow_global<Bank>(bank_address), token_id);
         let bank = borrow_global_mut<Bank>(bank_address);
 
         if (option::is_none(&token_vault)) {
@@ -85,8 +88,8 @@ module MentaLabs::Bank {
     ) acquires Bank {
         let addr = signer::address_of(account);
         let bank_address = get_bank_address(&addr);
-        let bank_ref = borrow_global<Bank>(bank_address);
-        assert!(has_vault(bank_ref, token_id), error::not_found(EVAULT_DNE));
+        assert_bank_exists(&addr);
+        assert_vault_exists_at(borrow_global<Bank>(bank_address), token_id);
 
         let bank_mut = borrow_global_mut<Bank>(bank_address);
         let vault_mut = table::borrow_mut(&mut bank_mut.vaults, token_id);
@@ -104,11 +107,8 @@ module MentaLabs::Bank {
         let addr = signer::address_of(account);
         let bank_address = get_bank_address(&addr);
 
-        // Ensures vault exists
-        assert!(
-            has_vault(borrow_global<Bank>(bank_address), token_id),
-            error::not_found(EVAULT_DNE)
-        );
+        assert_bank_exists(&addr);
+        assert_vault_exists_at(borrow_global<Bank>(bank_address), token_id);
 
         let bank_ref = borrow_global_mut<Bank>(bank_address);
         let vault_ref = table::borrow_mut(&mut bank_ref.vaults, token_id);
@@ -129,6 +129,27 @@ module MentaLabs::Bank {
         };
     }
 
+    public entry fun withdraw(account: &signer, token_id: token::TokenId) acquires Bank {
+        let addr = signer::address_of(account);
+
+        let bank_address = get_bank_address(&addr);
+        assert_bank_exists(&addr);
+
+        let bank_ref = borrow_global<Bank>(bank_address);
+        assert_vault_exists_at(bank_ref, token_id);
+
+        let vault_ref = table::borrow(&bank_ref.vaults, token_id);
+        assert!(!vault_ref.locked, error::invalid_state(EVAULT_LOCKED));
+
+        let bank_balance = token::balance_of(bank_address, token_id);
+        let bank_signature = account::create_signer_with_capability(&bank_ref.sign_cap);
+        token::direct_transfer(&bank_signature, account, token_id, bank_balance);
+
+        // Destroy token vault.
+        let bank_mut = borrow_global_mut<Bank>(bank_address);
+        table::remove(&mut bank_mut.vaults, token_id);
+    }
+
     // Helper functions
     /// Get a user's bank address.
     /// This function does not check if the bank exists.
@@ -136,18 +157,28 @@ module MentaLabs::Bank {
         account::create_resource_address(owner, BANK_SEED)
     }
 
-    /// Check if a bank has a vault for a token id.
-    public fun has_vault(bank: &Bank, token_id: token::TokenId): bool {
-        table::contains(&bank.vaults, token_id)
+    /// Asserts that a bank has a vault for a token id.
+    /// This function will abort if the vault does not exist.
+    public fun assert_vault_exists_at(bank: &Bank, token_id: token::TokenId) {
+        assert!(has_vault(bank, token_id), error::not_found(EVAULT_DNE));
+    }
+
+    public fun assert_bank_exists(owner: &address) {
+        let bank_addr = get_bank_address(owner);
+        assert!(exists<Bank>(bank_addr), error::not_found(ERESOURCE_DNE));
     }
 
     /// Get an user's vault for a specific TokenId.
-    public fun get_vault(bank: &Bank, token_id: token::TokenId): Option<Vault> {
+    public fun try_get_vault(bank: &Bank, token_id: token::TokenId): Option<Vault> {
         if (has_vault(bank, token_id)) {
             option::some(*table::borrow(&bank.vaults, token_id))
         } else {
             option::none()
         }
+    }
+
+    fun has_vault(bank: &Bank, token_id: token::TokenId): bool {
+        table::contains(&bank.vaults, token_id)
     }
 
     // Tests
@@ -237,9 +268,39 @@ module MentaLabs::Bank {
         assert!(user_balance == 0, 0);
 
         let bank_ref = borrow_global<Bank>(bank_address);
-        let token_vault = get_vault(bank_ref, token_id);
+        let token_vault = try_get_vault(bank_ref, token_id);
         assert!(option::is_some(&token_vault), 0);
         assert!(!option::borrow(&token_vault).locked, 0);
+    }
+
+    #[test(account = @0x111, core_framework = @aptos_framework)]
+    public entry fun test_withdraw(
+        account: signer,
+        core_framework: signer
+    ) acquires Bank {
+        let token_id = setup_and_create_token(&account, &core_framework);
+        let lock_duration = 30 * 86400;
+
+        deposit(&account, token_id, 1);
+        lock_vault(&account, token_id, lock_duration);
+
+        timestamp::fast_forward_seconds(lock_duration);
+
+        unlock_vault(&account, token_id);
+        withdraw(&account, token_id);
+
+        let bank_address = get_bank_address(&signer::address_of(&account));
+        let user_address = signer::address_of(&account);
+
+        let bank_balance = token::balance_of(bank_address, token_id);
+        assert!(bank_balance == 0, 0);
+
+        let user_balance = token::balance_of(user_address, token_id);
+        assert!(user_balance == 1, 0);
+
+        let bank_ref = borrow_global<Bank>(bank_address);
+        let token_vault = try_get_vault(bank_ref, token_id);
+        assert!(option::is_none(&token_vault), 0);
     }
 
     #[test(account = @0x111, core_framework = @aptos_framework)]
@@ -256,7 +317,7 @@ module MentaLabs::Bank {
 
         let bank_address = get_bank_address(&signer::address_of(&account));
         let bank_ref = borrow_global<Bank>(bank_address);
-        let token_vault = get_vault(bank_ref, token_id);
+        let token_vault = try_get_vault(bank_ref, token_id);
         assert!(option::borrow(&token_vault).locked, 0);
     }
 
@@ -281,7 +342,7 @@ module MentaLabs::Bank {
         let bank_addr = get_bank_address(&addr);
         let bank_ref = borrow_global<Bank>(bank_addr);
 
-        let vault_opt = get_vault(bank_ref, token_id);
+        let vault_opt = try_get_vault(bank_ref, token_id);
         let vault = option::extract(&mut vault_opt);
 
         assert!(vault.locked == false, 0);
