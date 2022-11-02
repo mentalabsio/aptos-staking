@@ -24,6 +24,7 @@ module MentaLabs::Bank {
     const EVAULT_LOCKED: u64 = 1;
     const EVAULT_DNE: u64 = 2;
     const ERESOURCE_DNE: u64 = 3;
+    const ELOCK_NOT_STARTED: u64 = 4;
 
     /// Seeds.
     const BANK_SEED: vector<u8> = b"vault";
@@ -65,7 +66,7 @@ module MentaLabs::Bank {
             });
         } else {
             let token_vault = option::borrow(&token_vault);
-            assert!(!token_vault.locked, EVAULT_LOCKED);
+            assert!(!token_vault.locked, error::invalid_state(EVAULT_LOCKED));
         };
 
         let bank_signer = account::create_signer_with_capability(
@@ -90,7 +91,7 @@ module MentaLabs::Bank {
         let bank_mut = borrow_global_mut<Bank>(bank_address);
         let vault_mut = table::borrow_mut(&mut bank_mut.vaults, token_id);
 
-        assert!(!(*vault_mut).locked, EVAULT_LOCKED);
+        assert!(!vault_mut.locked, error::invalid_state(EVAULT_LOCKED));
 
         *vault_mut = Vault {
             duration,
@@ -99,6 +100,57 @@ module MentaLabs::Bank {
         };
     }
 
+    public entry fun unlock_vault(account: &signer, token_id: token::TokenId) acquires Bank {
+        let addr = signer::address_of(account);
+        let bank_address = get_bank_address(&addr);
+
+        // Ensures vault exists
+        assert!(
+            has_vault(borrow_global<Bank>(bank_address), token_id),
+            error::not_found(EVAULT_DNE)
+        );
+
+        let bank_ref = borrow_global_mut<Bank>(bank_address);
+        let vault_ref = table::borrow_mut(&mut bank_ref.vaults, token_id);
+
+        assert!(
+            option::is_some(&vault_ref.start_ts),
+            error::invalid_state(ELOCK_NOT_STARTED)
+        );
+
+        let now_ts = timestamp::now_seconds();
+        let end_ts = (*option::borrow(&vault_ref.start_ts)) + vault_ref.duration;
+        assert!(now_ts >= end_ts, error::invalid_state(EVAULT_LOCKED));
+
+        *vault_ref = Vault {
+            duration: 0,
+            locked: false,
+            start_ts: option::none(),
+        };
+    }
+
+    // Helper functions
+    /// Get a user's bank address.
+    /// This function does not check if the bank exists.
+    public fun get_bank_address(owner: &address): address {
+        account::create_resource_address(owner, BANK_SEED)
+    }
+
+    /// Check if a bank has a vault for a token id.
+    public fun has_vault(bank: &Bank, token_id: token::TokenId): bool {
+        table::contains(&bank.vaults, token_id)
+    }
+
+    /// Get an user's vault for a specific TokenId.
+    public fun get_vault(bank: &Bank, token_id: token::TokenId): Option<Vault> {
+        if (has_vault(bank, token_id)) {
+            option::some(*table::borrow(&bank.vaults, token_id))
+        } else {
+            option::none()
+        }
+    }
+
+    // Tests
     #[test_only]
     public entry fun create_token(creator: &signer, amount: u64): token::TokenId {
         use std::string::{Self, String};
@@ -208,27 +260,48 @@ module MentaLabs::Bank {
         assert!(option::borrow(&token_vault).locked, 0);
     }
 
-    /// Helper functions
+    #[test(account = @0x111, core_framework = @aptos_framework)]
+    public entry fun test_unlock(
+        account: signer,
+        core_framework: signer
+    ) acquires Bank {
+        let token_id = setup_and_create_token(&account, &core_framework);
+        deposit(&account, token_id, 1);
 
-    /// Get a user's bank address.
-    /// This function does not check if the bank exists.
-    public fun get_bank_address(owner: &address): address {
-        account::create_resource_address(owner, BANK_SEED)
+        // Lock for 30 days.
+        let lock_duration = 30 * 86400;
+        lock_vault(&account, token_id, lock_duration);
+
+        // Fast forward chain clock
+        timestamp::fast_forward_seconds(lock_duration);
+
+        unlock_vault(&account, token_id);
+
+        let addr = signer::address_of(&account);
+        let bank_addr = get_bank_address(&addr);
+        let bank_ref = borrow_global<Bank>(bank_addr);
+
+        let vault_opt = get_vault(bank_ref, token_id);
+        let vault = option::extract(&mut vault_opt);
+
+        assert!(vault.locked == false, 0);
+        assert!(vault.duration == 0, 0);
+        assert!(option::is_none(&vault.start_ts), 0);
     }
 
-    /// Check if a bank has a vault for a token id.
-    public fun has_vault(bank: &Bank, token_id: token::TokenId): bool {
-        table::contains(&bank.vaults, token_id)
+    #[test(account = @0x111, core_framework = @aptos_framework)]
+    #[expected_failure(abort_code = 0x30001)]
+    public entry fun should_wait_duration(
+        account: signer,
+        core_framework: signer
+    ) acquires Bank {
+        let token_id = setup_and_create_token(&account, &core_framework);
+        deposit(&account, token_id, 1);
+
+        // Lock for 30 days.
+        let lock_duration = 30 * 86400;
+        lock_vault(&account, token_id, lock_duration);
+
+        unlock_vault(&account, token_id);
     }
-
-    /// Get an user's vault for a specific TokenId.
-    public fun get_vault(bank: &Bank, token_id: token::TokenId): Option<Vault> {
-        if (has_vault(bank, token_id)) {
-            option::some(*table::borrow(&bank.vaults, token_id))
-        } else {
-            option::none()
-        }
-    }
-
-
 }
