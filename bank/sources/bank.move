@@ -35,10 +35,9 @@ module MentaLabs::bank {
     const ELOCK_NOT_STARTED: u64 = 4;
 
     /// Seeds.
-    const BANK_SEED: vector<u8> = b"vault";
+    const BANK_SEED: vector<u8> = b"bank";
 
-    /// Instruction handlers:
-
+    // Instruction handlers:
     /// Create a new resource account holding a zeroed vault.
     /// Aborts if the bank already exists.
     public entry fun publish_vault(account: &signer) {
