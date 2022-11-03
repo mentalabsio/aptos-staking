@@ -13,10 +13,18 @@ module MentaLabs::bank {
         start_ts: Option<u64>,
     }
 
-    /// Vaults a fixed amount of tokens for a period of time.
+    /// This resource is owned by a resource account, which holds the NFTs
+    /// registered in the `vaults` table.
+    /// Each vault has its own state and duration settings.
     struct Bank has key {
         vaults: Table<token::TokenId, Vault>,
         sign_cap: account::SignerCapability,
+    }
+
+    /// Resource stored in the user account, that will store the address of
+    /// the bank's resource account.
+    struct BankResource has key {
+        res: address
     }
 
     /// Error codes.
@@ -34,6 +42,11 @@ module MentaLabs::bank {
     /// Create a new resource account holding a zeroed vault.
     /// Aborts if the bank already exists.
     public entry fun publish_vault(account: &signer) {
+        assert!(
+            !exists<BankResource>(signer::address_of(account)),
+            error::already_exists(EALREADY_EXISTS)
+        );
+
         let (resource, sign_cap) =
             account::create_resource_account(account, BANK_SEED);
 
@@ -46,13 +59,19 @@ module MentaLabs::bank {
             vaults: table::new(),
             sign_cap,
         });
+
+        move_to(account, BankResource {
+            res: signer::address_of(&resource)
+        });
     }
 
     /// Deposits token into the vault, without locking it.
     /// Aborts if the bank or the vault does not exist.
-    public entry fun deposit(account: &signer, token_id: token::TokenId, amount: u64)
-        acquires Bank
-    {
+    public entry fun deposit(
+        account: &signer,
+        token_id: token::TokenId,
+        amount: u64
+    ) acquires Bank, BankResource {
         let addr = signer::address_of(account);
         let bank_address = get_bank_address(&addr);
 
@@ -85,7 +104,7 @@ module MentaLabs::bank {
         account: &signer,
         token_id: token::TokenId,
         duration: u64
-    ) acquires Bank {
+    ) acquires Bank, BankResource {
         let addr = signer::address_of(account);
         let bank_address = get_bank_address(&addr);
         assert_bank_exists(&addr);
@@ -103,7 +122,10 @@ module MentaLabs::bank {
         };
     }
 
-    public entry fun unlock_vault(account: &signer, token_id: token::TokenId) acquires Bank {
+    public entry fun unlock_vault(
+        account: &signer,
+        token_id: token::TokenId
+    ) acquires Bank, BankResource {
         let addr = signer::address_of(account);
         let bank_address = get_bank_address(&addr);
 
@@ -129,7 +151,10 @@ module MentaLabs::bank {
         };
     }
 
-    public entry fun withdraw(account: &signer, token_id: token::TokenId) acquires Bank {
+    public entry fun withdraw(
+        account: &signer,
+        token_id: token::TokenId
+    ) acquires Bank, BankResource {
         let addr = signer::address_of(account);
 
         let bank_address = get_bank_address(&addr);
@@ -142,7 +167,10 @@ module MentaLabs::bank {
         assert!(!vault_ref.locked, error::invalid_state(EVAULT_LOCKED));
 
         let bank_balance = token::balance_of(bank_address, token_id);
-        let bank_signature = account::create_signer_with_capability(&bank_ref.sign_cap);
+        let bank_signature = account::create_signer_with_capability(
+            &bank_ref.sign_cap
+        );
+
         token::direct_transfer(&bank_signature, account, token_id, bank_balance);
 
         // Destroy token vault.
@@ -153,8 +181,8 @@ module MentaLabs::bank {
     // Helper functions
     /// Get a user's bank address.
     /// This function does not check if the bank exists.
-    public fun get_bank_address(owner: &address): address {
-        account::create_resource_address(owner, BANK_SEED)
+    public fun get_bank_address(owner: &address): address acquires BankResource {
+        borrow_global<BankResource>(*owner).res
     }
 
     /// Asserts that a bank has a vault for a token id.
@@ -164,8 +192,7 @@ module MentaLabs::bank {
     }
 
     public fun assert_bank_exists(owner: &address) {
-        let bank_addr = get_bank_address(owner);
-        assert!(exists<Bank>(bank_addr), error::not_found(ERESOURCE_DNE));
+        assert!(exists<BankResource>(*owner), error::not_found(ERESOURCE_DNE));
     }
 
     /// Get an user's vault for a specific TokenId.
@@ -236,15 +263,14 @@ module MentaLabs::bank {
     public entry fun setup_and_create_token(
         account: &signer,
         core_framework: &signer
-    ): token::TokenId {
+    ): token::TokenId acquires BankResource {
         let addr = signer::address_of(account);
         aptos_framework::account::create_account_for_test(addr);
         timestamp::set_time_has_started_for_testing(core_framework);
 
         publish_vault(account);
 
-        let bank_addr = get_bank_address(&addr);
-        assert!(exists<Bank>(bank_addr), error::not_found(ERESOURCE_DNE));
+        assert_bank_exists(&addr);
 
         create_token(account, 1)
     }
@@ -253,7 +279,7 @@ module MentaLabs::bank {
     public entry fun test_deposit(
         account: signer,
         core_framework: signer
-    ) acquires Bank {
+    ) acquires BankResource, Bank {
         let token_id = setup_and_create_token(&account, &core_framework);
 
         deposit(&account, token_id, 1);
@@ -277,7 +303,7 @@ module MentaLabs::bank {
     public entry fun test_withdraw(
         account: signer,
         core_framework: signer
-    ) acquires Bank {
+    ) acquires Bank, BankResource {
         let token_id = setup_and_create_token(&account, &core_framework);
         let lock_duration = 30 * 86400;
 
@@ -307,7 +333,7 @@ module MentaLabs::bank {
     public entry fun test_lock(
         account: signer,
         core_framework: signer
-    ) acquires Bank {
+    ) acquires Bank, BankResource {
         let token_id = setup_and_create_token(&account, &core_framework);
         deposit(&account, token_id, 1);
 
@@ -325,7 +351,7 @@ module MentaLabs::bank {
     public entry fun test_unlock(
         account: signer,
         core_framework: signer
-    ) acquires Bank {
+    ) acquires Bank, BankResource {
         let token_id = setup_and_create_token(&account, &core_framework);
         deposit(&account, token_id, 1);
 
@@ -352,10 +378,10 @@ module MentaLabs::bank {
 
     #[test(account = @0x111, core_framework = @aptos_framework)]
     #[expected_failure(abort_code = 0x30001)]
-    public entry fun should_wait_duration(
+    public entry fun test_unlock_before_duration_ends(
         account: signer,
         core_framework: signer
-    ) acquires Bank {
+    ) acquires Bank, BankResource {
         let token_id = setup_and_create_token(&account, &core_framework);
         deposit(&account, token_id, 1);
 
