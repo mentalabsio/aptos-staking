@@ -1,4 +1,4 @@
-module MentaLabs::Bank {
+module MentaLabs::bank {
     use std::error;
     use std::signer;
     use std::option::{Self, Option};
