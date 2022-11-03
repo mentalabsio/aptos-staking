@@ -1,4 +1,3 @@
-
 spec MentaLabs::bank {
     spec schema BankDNEAborts {
         account: signer;

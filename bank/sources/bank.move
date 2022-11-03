@@ -27,14 +27,18 @@ module MentaLabs::bank {
         res: address
     }
 
-    /// Error codes.
+    /// Resource already exists.
     const EALREADY_EXISTS: u64 = 0;
+    /// Vault is locked.
     const EVAULT_LOCKED: u64 = 1;
+    /// Vault does not exist.
     const EVAULT_DNE: u64 = 2;
+    /// Resource does not exist.
     const ERESOURCE_DNE: u64 = 3;
+    /// Vault's lock has not started yet.
     const ELOCK_NOT_STARTED: u64 = 4;
 
-    /// Seeds.
+    /// Bank resource address seed.
     const BANK_SEED: vector<u8> = b"bank";
 
     // Instruction handlers:
