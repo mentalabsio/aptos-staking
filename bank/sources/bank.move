@@ -388,6 +388,19 @@ module MentaLabs::bank {
         let lock_duration = 30 * 86400;
         lock_vault(&account, token_id, lock_duration);
 
+        // Attempt to unlock it.
         unlock_vault(&account, token_id);
+    }
+
+    #[test(account = @0x111, core_framework = @aptos_framework)]
+    #[expected_failure(abort_code = 0x30001)]
+    public entry fun test_withdraw_when_locked(
+        account: signer,
+        core_framework: signer
+    ) acquires Bank, BankResource {
+        let token_id = setup_and_create_token(&account, &core_framework);
+        deposit(&account, token_id, 1);
+        lock_vault(&account, token_id, 1000);
+        withdraw(&account, token_id);
     }
 }
