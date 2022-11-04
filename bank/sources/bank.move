@@ -266,7 +266,7 @@ module MentaLabs::bank {
     public entry fun setup_and_create_token(
         account: &signer,
         core_framework: &signer
-    ): token::TokenId acquires BankResource {
+    ): token::TokenId {
         let addr = signer::address_of(account);
         aptos_framework::account::create_account_for_test(addr);
         timestamp::set_time_has_started_for_testing(core_framework);
