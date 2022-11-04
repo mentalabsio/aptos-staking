@@ -20,8 +20,6 @@ module MentaLabs::reward_vault {
 
     /// Stores receiver information in the user account.
     struct RewardReceiver<phantom CoinType> has key, drop {
-        /// Owner address.
-        owner: address,
         /// Vault handle.
         vh: address,
         /// Start timestamp.
@@ -150,7 +148,6 @@ module MentaLabs::reward_vault {
         move_to(account, RewardReceiver<CoinType> {
             modifier,
             vh: vault,
-            owner: addr,
             start_ts: now_ts,
             accrued_rewards: 0,
             last_update_ts: now_ts,
@@ -183,7 +180,6 @@ module MentaLabs::reward_vault {
             start_ts: _,
             accrued_rewards: _,
             last_update_ts: _,
-            owner: _,
             vh: _,
             modifier: _
         } = receiver;
