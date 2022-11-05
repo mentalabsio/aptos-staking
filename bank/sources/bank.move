@@ -7,6 +7,8 @@ module MentaLabs::bank {
     use aptos_framework::account;
     use aptos_framework::timestamp;
 
+    friend MentaLabs::farm;
+
     struct Vault has store, copy, drop {
         locked: bool,
         duration: u64,
@@ -44,7 +46,7 @@ module MentaLabs::bank {
     // Instruction handlers:
     /// Create a new resource account holding a zeroed vault.
     /// Aborts if the bank already exists.
-    public entry fun publish_vault(account: &signer) {
+    public entry fun publish_bank(account: &signer) {
         assert!(
             !exists<BankResource>(signer::address_of(account)),
             error::already_exists(EALREADY_EXISTS)
@@ -125,7 +127,7 @@ module MentaLabs::bank {
         };
     }
 
-    public entry fun unlock_vault(
+    public(friend) entry fun unlock_vault(
         account: &signer,
         token_id: token::TokenId
     ) acquires Bank, BankResource {
@@ -154,7 +156,7 @@ module MentaLabs::bank {
         };
     }
 
-    public entry fun withdraw(
+    public(friend) entry fun withdraw(
         account: &signer,
         token_id: token::TokenId
     ) acquires Bank, BankResource {
@@ -192,6 +194,10 @@ module MentaLabs::bank {
     /// This function will abort if the vault does not exist.
     public fun assert_vault_exists_at(bank: &Bank, token_id: token::TokenId) {
         assert!(has_vault(bank, token_id), error::not_found(EVAULT_DNE));
+    }
+
+    public fun bank_exists(owner: &address): bool {
+        exists<BankResource>(*owner)
     }
 
     public fun assert_bank_exists(owner: &address) {
@@ -271,7 +277,7 @@ module MentaLabs::bank {
         aptos_framework::account::create_account_for_test(addr);
         timestamp::set_time_has_started_for_testing(core_framework);
 
-        publish_vault(account);
+        publish_bank(account);
 
         assert_bank_exists(&addr);
 
