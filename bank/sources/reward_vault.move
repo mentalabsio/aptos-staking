@@ -133,10 +133,18 @@ module MentaLabs::reward_vault {
     public entry fun subscribe<CoinType>(account: &signer, vault: address)
         acquires RewardVault, RewardTransmitter
     {
-        subscribe_with_modifier<CoinType>(account, vault, option::none());
+        internal_subscribe<CoinType>(account, vault, option::none());
     }
 
     public entry fun subscribe_with_modifier<CoinType>(
+        account: &signer,
+        vault: address,
+        modifier: Modifier
+    ) acquires RewardVault, RewardTransmitter {
+        internal_subscribe<CoinType>(account, vault, option::some(modifier));
+    }
+
+    fun internal_subscribe<CoinType>(
         account: &signer,
         vault: address,
         modifier: Option<Modifier>
@@ -227,6 +235,24 @@ module MentaLabs::reward_vault {
         recv.accrued_rewards = 0;
     }
 
+    public(friend) fun increase_modifier_value<CoinType>(
+        account: address,
+        lhs: u64
+    ) acquires RewardReceiver {
+        let recv = borrow_global<RewardReceiver<CoinType>>(account);
+        let Modifier { kind, value } = option::borrow_with_default(&recv.modifier, &Modifier { value: 0, kind: MODIFIER_MUL });
+        update_modifier<CoinType>(account, option::some(Modifier { kind: *kind, value: *value + lhs } ));
+    }
+
+    public(friend) fun decrease_modifier_value<CoinType>(
+        account: address,
+        lhs: u64
+    ) acquires RewardReceiver {
+        let recv = borrow_global<RewardReceiver<CoinType>>(account);
+        let Modifier { kind, value } = option::borrow_with_default(&recv.modifier, &Modifier { value: 1, kind: MODIFIER_MUL });
+        update_modifier<CoinType>(account, option::some(Modifier { kind: *kind, value: *value - lhs } ));
+    }
+
     public(friend) fun update_modifier<CoinType>(
         account: address,
         modifier: Option<Modifier>
@@ -235,38 +261,19 @@ module MentaLabs::reward_vault {
         receiver.modifier = modifier;
     }
 
-    public(friend) fun create_modifier(
-        kind: u8,
-        value: u64
-    ): Modifier {
-        Modifier {
-            kind,
-            value
-        }
+    public(friend) fun create_sum_modifier(value: u64): Modifier {
+        Modifier { kind: MODIFIER_SUM, value }
     }
 
-    public fun get_modifier_value<CoinType>(
-        account: address
-    ): Option<u64> acquires RewardReceiver {
-        let recv = borrow_global<RewardReceiver<CoinType>>(account);
-        if (option::is_some(&recv.modifier)) {
-            let modifier = option::borrow(&recv.modifier);
-            option::some(modifier.value)
-        } else {
-            option::none()
-        }
+    public(friend) fun create_mul_modifier(value: u64): Modifier {
+        Modifier { kind: MODIFIER_MUL, value }
     }
 
-    public fun get_modifier_kind<CoinType>(
-        account: address
-    ): Option<u8> acquires RewardReceiver {
+    // get modifier value
+    public(friend) fun get_modifier<CoinType>(account: address): u64 acquires RewardReceiver {
         let recv = borrow_global<RewardReceiver<CoinType>>(account);
-        if (option::is_some(&recv.modifier)) {
-            let modifier = option::borrow(&recv.modifier);
-            option::some(modifier.kind)
-        } else {
-            option::none()
-        }
+        let Modifier { kind: _, value } = option::borrow_with_default(&recv.modifier, &Modifier { value: 0, kind: MODIFIER_MUL });
+        *value
     }
 
     public entry fun is_subscribed<CoinType>(account: address, vault: address)
@@ -376,7 +383,7 @@ module MentaLabs::reward_vault {
         subscribe_with_modifier<coin::FakeMoney>(
             &user1,
             addr,
-            option::some(create_modifier(MODIFIER_MUL, 2))
+            create_mul_modifier(2)
         );
         timestamp::fast_forward_seconds(86400);
         claim<coin::FakeMoney>(&user1);
@@ -400,7 +407,7 @@ module MentaLabs::reward_vault {
         subscribe_with_modifier<coin::FakeMoney>(
             &user1,
             addr,
-            option::some(create_modifier(MODIFIER_MUL, 2))
+            create_mul_modifier(2)
         );
         timestamp::fast_forward_seconds(86400);
         claim<coin::FakeMoney>(&user1);
@@ -411,7 +418,7 @@ module MentaLabs::reward_vault {
         let balance = coin::balance<coin::FakeMoney>(user1_addr);
         assert!(balance == expected, 0);
 
-        let new_modifier = create_modifier(MODIFIER_MUL, 3);
+        let new_modifier = create_mul_modifier(3);
         update_modifier<coin::FakeMoney>(
             user1_addr,
             option::some(new_modifier)
