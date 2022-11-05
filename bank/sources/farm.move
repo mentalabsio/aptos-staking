@@ -275,30 +275,7 @@ module MentaLabs::farm {
     }
 
     #[test(creator = @0x111, user = @0x222, core_framework = @aptos_framework)]
-    public entry fun test_staking(creator: signer, user: signer, core_framework: signer)
-        acquires Farm, Farmer
-    {
-        let token_id = setup(&creator, &user, &core_framework);
-        let creator_addr = signer::address_of(&creator);
-        let farm_addr = find_farm_address(&creator_addr);
-
-        stake<FakeMoney>(&user, token_id, farm_addr);
-
-        let user_addr = signer::address_of(&user);
-        bank::assert_bank_exists(&user_addr);
-
-        let bank_addr = bank::get_bank_address(&user_addr);
-        assert!(token::balance_of(bank_addr, token_id) == 1, 1);
-
-        assert!(reward_vault::is_subscribed<FakeMoney>(user_addr, farm_addr), 1);
-
-        let staked = get_staked<FakeMoney>(&user_addr);
-        assert!(vector::length(&staked) == 1, 1);
-
-    }
-
-    #[test(creator = @0x111, user = @0x222, core_framework = @aptos_framework)]
-    public entry fun test_unstaking(creator: signer, user: signer, core_framework: signer)
+    public entry fun test_farm_staking(creator: signer, user: signer, core_framework: signer)
         acquires Farm, Farmer
     {
         use aptos_framework::timestamp;
@@ -310,7 +287,14 @@ module MentaLabs::farm {
         let farm_addr = find_farm_address(&creator_addr);
 
         stake<FakeMoney>(&user, token_id, farm_addr);
+
         let bank_addr = bank::get_bank_address(&user_addr);
+
+        let staked = get_staked<FakeMoney>(&user_addr);
+        bank::assert_bank_exists(&user_addr);
+        assert!(token::balance_of(bank_addr, token_id) == 1, 1);
+        assert!(reward_vault::is_subscribed<FakeMoney>(user_addr, farm_addr), 1);
+        assert!(vector::length(&staked) == 1, 1);
 
         {
             // Stake another token
@@ -334,13 +318,10 @@ module MentaLabs::farm {
         timestamp::fast_forward_seconds(1000);
         unstake<FakeMoney>(&user, token_id, farm_addr);
 
-        // check user bank
+        let staked = get_staked<FakeMoney>(&user_addr);
         assert!(token::balance_of(bank_addr, token_id) == 0, 1);
         assert!(!reward_vault::is_subscribed<FakeMoney>(user_addr, farm_addr), 1);
-
-        let staked = get_staked<FakeMoney>(&user_addr);
         assert!(vector::length(&staked) == 0, 1);
-
         assert!(token::balance_of(user_addr, token_id) == 1, 1);
         assert!(coin::balance<FakeMoney>(user_addr) == 1000 , 1);
     }
