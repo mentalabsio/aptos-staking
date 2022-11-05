@@ -120,9 +120,11 @@ module MentaLabs::farm {
         };
         bank::deposit(account, token_id, 1);
 
-        // TODO: update reward modifier if the farmer is already subscribed
         if (!reward_vault::is_subscribed<R>(addr, farm)) {
-            reward_vault::subscribe<R>(account, farm);
+            let modifier = reward_vault::create_mul_modifier(1);
+            reward_vault::subscribe_with_modifier<R>(account, farm, modifier);
+        } else {
+            reward_vault::increase_modifier_value<R>(signer::address_of(account), 1);
         };
     }
 
@@ -142,8 +144,11 @@ module MentaLabs::farm {
         bank::withdraw(account, token_id);
 
         // Unsubscribe from reward vault.
-        // TODO: update modifier.
-        reward_vault::unsubscribe<R>(account, farm);
+        if (reward_vault::get_modifier<R>(addr) == 1) {
+            reward_vault::unsubscribe<R>(account, farm);
+        } else {
+            reward_vault::decrease_modifier_value<R>(addr, 1);
+        };
     }
 
     public fun find_farm_address(creator: &address): address {
@@ -170,6 +175,63 @@ module MentaLabs::farm {
     use aptos_framework::coin::FakeMoney;
 
     #[test_only]
+    fun create_collection(creator: &signer) {
+        use std::string;
+
+        let collection_name = string::utf8(b"Hello, World");
+        let collection_mutation_setting = vector<bool>[false, false, false];
+
+        token::create_collection(
+            creator,
+            *&collection_name,
+            string::utf8(b"Collection: Hello, World"),
+            string::utf8(b"https://aptos.dev"),
+            10,
+            collection_mutation_setting,
+        );
+    }
+
+    #[test_only]
+    public entry fun create_token(creator: &signer, collection_name: String, token_name: String):
+        token::TokenId
+    {
+        use std::string;
+
+        let token_mutation_setting = vector<bool>[false, false, false, false, true];
+        let default_keys = vector<String>[
+            string::utf8(b"attack"),
+            string::utf8(b"num_of_use")
+        ];
+        let default_vals = vector<vector<u8>>[b"10", b"5"];
+        let default_types = vector<String>[
+            string::utf8(b"integer"),
+            string::utf8(b"integer")
+        ];
+        token::create_token_script(
+            creator,
+            *&collection_name,
+            *&token_name,
+            string::utf8(b"Hello, Token"),
+            1,
+            1,
+            string::utf8(b"https://aptos.dev"),
+            signer::address_of(creator),
+            100,
+            0,
+            token_mutation_setting,
+            default_keys,
+            default_vals,
+            default_types,
+        );
+        token::create_token_id_raw(
+            signer::address_of(creator),
+            *&collection_name,
+            *&token_name,
+            0
+        )
+    }
+
+    #[test_only]
     public entry fun setup(creator: &signer, user: &signer, core_framework: &signer): token::TokenId acquires Farm {
         use std::string;
         use aptos_framework::timestamp;
@@ -193,7 +255,9 @@ module MentaLabs::farm {
         assert!(coin::balance<FakeMoney>(creator_addr) == initial_amount, 0);
 
         // Create a new NFT.
-        let token_id = bank::create_token(creator, 1);
+        let collection_name = string::utf8(b"Hello, World");
+        create_collection(creator);
+        let token_id = create_token(creator, collection_name, string::utf8(b"Token #1"));
         token::direct_transfer(creator, user, token_id, 1);
 
         // Publish a new farm under creator account.
@@ -201,7 +265,6 @@ module MentaLabs::farm {
         let farm_addr = find_farm_address(&creator_addr);
 
         // Whitelist the newly created collection.
-        let collection_name = string::utf8(b"Hello, World");
         add_to_whitelist<FakeMoney>(creator, collection_name);
         assert!(is_whitelisted<FakeMoney>(farm_addr, collection_name), 1);
 
@@ -221,19 +284,17 @@ module MentaLabs::farm {
 
         stake<FakeMoney>(&user, token_id, farm_addr);
 
-        // check user bank
         let user_addr = signer::address_of(&user);
         bank::assert_bank_exists(&user_addr);
 
         let bank_addr = bank::get_bank_address(&user_addr);
         assert!(token::balance_of(bank_addr, token_id) == 1, 1);
 
-        // check user reward vault subscription
         assert!(reward_vault::is_subscribed<FakeMoney>(user_addr, farm_addr), 1);
 
-        // check user staked tokens
         let staked = get_staked<FakeMoney>(&user_addr);
         assert!(vector::length(&staked) == 1, 1);
+
     }
 
     #[test(creator = @0x111, user = @0x222, core_framework = @aptos_framework)]
@@ -241,29 +302,46 @@ module MentaLabs::farm {
         acquires Farm, Farmer
     {
         use aptos_framework::timestamp;
+        use std::string;
 
         let token_id = setup(&creator, &user, &core_framework);
         let creator_addr = signer::address_of(&creator);
         let user_addr = signer::address_of(&user);
-
         let farm_addr = find_farm_address(&creator_addr);
 
         stake<FakeMoney>(&user, token_id, farm_addr);
-        timestamp::fast_forward_seconds(1000);
-
         let bank_addr = bank::get_bank_address(&user_addr);
+
+        {
+            // Stake another token
+            let token_id = create_token(&creator, string::utf8(b"Hello, World"), string::utf8(b"Token #2"));
+            token::direct_transfer(&creator, &user, token_id, 1);
+
+            stake<FakeMoney>(&user, token_id, farm_addr);
+
+            let staked = get_staked<FakeMoney>(&user_addr);
+            assert!(vector::length(&staked) == 2, 1);
+            assert!(token::balance_of(bank_addr, token_id) == 1, 1);
+            assert!(reward_vault::get_modifier<FakeMoney>(user_addr) == 2, 1);
+
+            unstake<FakeMoney>(&user, token_id, farm_addr);
+
+            let staked = get_staked<FakeMoney>(&user_addr);
+            assert!(vector::length(&staked) == 1, 1);
+            assert!(reward_vault::get_modifier<FakeMoney>(user_addr) == 1, 1);
+        };
+
+        timestamp::fast_forward_seconds(1000);
         unstake<FakeMoney>(&user, token_id, farm_addr);
 
         // check user bank
         assert!(token::balance_of(bank_addr, token_id) == 0, 1);
-        // check user reward vault subscription
         assert!(!reward_vault::is_subscribed<FakeMoney>(user_addr, farm_addr), 1);
-        // check user token balance
-        assert!(token::balance_of(user_addr, token_id) == 1, 1);
-        // check user reward token balance
-        assert!(coin::balance<FakeMoney>(user_addr) == 1000 , 1);
-        // check user staked tokens
+
         let staked = get_staked<FakeMoney>(&user_addr);
         assert!(vector::length(&staked) == 0, 1);
+
+        assert!(token::balance_of(user_addr, token_id) == 1, 1);
+        assert!(coin::balance<FakeMoney>(user_addr) == 1000 , 1);
     }
 }
