@@ -143,12 +143,22 @@ module MentaLabs::farm {
         // Unlock the token from the bank
         bank::withdraw(account, token_id);
 
+        claim_rewards<R>(account);
+
         // Unsubscribe from reward vault.
         if (reward_vault::get_modifier<R>(addr) == 1) {
             reward_vault::unsubscribe<R>(account, farm);
         } else {
             reward_vault::decrease_modifier_value<R>(addr, 1);
         };
+    }
+
+    public entry fun claim_rewards<R>(account: &signer) {
+        assert!(
+            exists<Farmer<R>>(signer::address_of(account)),
+            error::not_found(ERESOURCE_DNE)
+        );
+        reward_vault::claim<R>(account);
     }
 
     public fun find_farm_address(creator: &address): address {
@@ -161,7 +171,7 @@ module MentaLabs::farm {
 
     public fun is_registered<R>(farmer: &address, farm: address): bool acquires Farm {
         let farm = borrow_global<Farm<R>>(farm);
-        vector::contains(&farm.farmer_handles, farmer)
+        vector::contains(&farm.farmer_handles, farmer) && exists<Farmer<R>>(*farmer)
     }
 
     public fun is_whitelisted<R>(farm: address, collection_name: String): bool acquires Farm {
@@ -321,8 +331,8 @@ module MentaLabs::farm {
 
         let staked = get_staked<FakeMoney>(&user_addr);
         bank::assert_bank_exists(&user_addr);
-        assert!(token::balance_of(bank_addr, token_id) == 1, 1);
         assert!(reward_vault::is_subscribed<FakeMoney>(user_addr, farm_addr), 1);
+        assert!(token::balance_of(bank_addr, token_id) == 1, 1);
         assert!(vector::length(&staked) == 1, 1);
 
         {
@@ -333,25 +343,31 @@ module MentaLabs::farm {
             stake<FakeMoney>(&user, token_id, farm_addr);
 
             let staked = get_staked<FakeMoney>(&user_addr);
-            assert!(vector::length(&staked) == 2, 1);
-            assert!(token::balance_of(bank_addr, token_id) == 1, 1);
             assert!(reward_vault::get_modifier<FakeMoney>(user_addr) == 2, 1);
+            assert!(token::balance_of(bank_addr, token_id) == 1, 1);
+            assert!(vector::length(&staked) == 2, 1);
+
+            timestamp::fast_forward_seconds(250);
 
             unstake<FakeMoney>(&user, token_id, farm_addr);
 
             let staked = get_staked<FakeMoney>(&user_addr);
-            assert!(vector::length(&staked) == 1, 1);
+            let coin_balance = coin::balance<FakeMoney>(user_addr);
+            assert!(coin_balance == 500, 1);
             assert!(reward_vault::get_modifier<FakeMoney>(user_addr) == 1, 1);
+            assert!(token::balance_of(bank_addr, token_id) == 0, 1);
+            assert!(token::balance_of(user_addr, token_id) == 1, 1);
+            assert!(vector::length(&staked) == 1, 1);
         };
 
-        timestamp::fast_forward_seconds(1000);
+        timestamp::fast_forward_seconds(500);
         unstake<FakeMoney>(&user, token_id, farm_addr);
 
         let staked = get_staked<FakeMoney>(&user_addr);
-        assert!(token::balance_of(bank_addr, token_id) == 0, 1);
-        assert!(!reward_vault::is_subscribed<FakeMoney>(user_addr, farm_addr), 1);
-        assert!(vector::length(&staked) == 0, 1);
-        assert!(token::balance_of(user_addr, token_id) == 1, 1);
         assert!(coin::balance<FakeMoney>(user_addr) == 1000 , 1);
+        assert!(!reward_vault::is_subscribed<FakeMoney>(user_addr, farm_addr), 1);
+        assert!(token::balance_of(bank_addr, token_id) == 0, 1);
+        assert!(token::balance_of(user_addr, token_id) == 1, 1);
+        assert!(vector::length(&staked) == 0, 1);
     }
 }
