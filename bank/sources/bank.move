@@ -204,8 +204,18 @@ module MentaLabs::bank {
         assert!(exists<BankResource>(*owner), error::not_found(ERESOURCE_DNE));
     }
 
-    /// Get an user's vault for a specific TokenId.
-    public fun try_get_vault(bank: &Bank, token_id: token::TokenId): Option<Vault> {
+    public fun get_user_vault(owner: &address, token_id: token::TokenId):
+        Vault
+        acquires BankResource, Bank
+   {
+        assert_bank_exists(owner);
+        let bank_address = get_bank_address(owner);
+        let bank = borrow_global<Bank>(bank_address);
+        assert!(has_vault(bank, token_id), error::not_found(EVAULT_DNE));
+        *table::borrow(&bank.vaults, token_id)
+    }
+
+    fun try_get_vault(bank: &Bank, token_id: token::TokenId): Option<Vault> {
         if (has_vault(bank, token_id)) {
             option::some(*table::borrow(&bank.vaults, token_id))
         } else {
@@ -219,7 +229,9 @@ module MentaLabs::bank {
 
     // Tests
     #[test_only]
-    public entry fun create_token(creator: &signer, amount: u64): token::TokenId {
+    public entry fun create_token(creator: &signer, amount: u64):
+        token::TokenId
+    {
         use std::string::{Self, String};
 
         let collection_name = string::utf8(b"Hello, World");
