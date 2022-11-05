@@ -201,7 +201,7 @@ module MentaLabs::reward_vault {
 
         let vault = borrow_global<RewardVault<CoinType>>(recv.vh);
         let tx = borrow_global_mut<RewardTransmitter<CoinType>>(vault.tx);
-        let reward = borrow_global<RewardReceiver<CoinType>>(addr).accrued_rewards;
+        let reward = recv.accrued_rewards;
 
         assert!(reward <= tx.available, error::invalid_state(EINSUFFICIENT_REWARDS));
 
@@ -213,6 +213,28 @@ module MentaLabs::reward_vault {
         };
 
         coin::transfer<CoinType>(&tx_sig, addr, reward);
+
+        tx.available = tx.available - reward;
+
+        recv.accrued_rewards = 0;
+    }
+
+    public(friend) fun update_modifier<CoinType>(
+        account: address,
+        modifier: Option<Modifier>
+    ) acquires RewardReceiver {
+        let receiver = borrow_global_mut<RewardReceiver<CoinType>>(account);
+        receiver.modifier = modifier;
+    }
+
+    public(friend) fun create_modifier(
+        kind: u8,
+        value: u64
+    ): Modifier {
+        Modifier {
+            kind,
+            value
+        }
     }
 
     public fun assert_reward_vault_exists<CoinType>(addr: address) {
@@ -236,7 +258,7 @@ module MentaLabs::reward_vault {
         coin::transfer<coin::FakeMoney>(core_framework, addr, initial_amount);
         assert!(coin::balance<coin::FakeMoney>(addr) == initial_amount, 0);
 
-        let reward_rate = (3 * math64::pow(10, 18)) / 86400;
+        let reward_rate = (1 * math64::pow(10, 18)) / 86400;
         publish_reward_vault<coin::FakeMoney>(account, reward_rate);
 
         let RewardVault { tx, rxs } = borrow_global<RewardVault<coin::FakeMoney>>(addr);
@@ -312,7 +334,7 @@ module MentaLabs::reward_vault {
         subscribe_with_modifier<coin::FakeMoney>(
             &user1,
             addr,
-            option::some(Modifier { kind: MODIFIER_MUL, value: 2 })
+            option::some(create_modifier(MODIFIER_MUL, 2))
         );
         timestamp::fast_forward_seconds(86400);
         claim<coin::FakeMoney>(&user1);
@@ -322,6 +344,42 @@ module MentaLabs::reward_vault {
         let expected = (reward_rate * 2) * 86400;
         let balance = coin::balance<coin::FakeMoney>(user1_addr);
         assert!(balance == expected, 0);
+    }
+
+    #[test(account = @0x111, user1 = @0x112, core_framework = @aptos_framework)]
+    public entry fun test_update_modifier(account: signer, user1: signer, core_framework: signer)
+        acquires RewardVault, RewardReceiver, RewardTransmitter
+    {
+        let addr = signer::address_of(&account);
+        let user1_addr = signer::address_of(&user1);
+
+        account::create_account_for_test(user1_addr);
+        setup(&account, &core_framework);
+        subscribe_with_modifier<coin::FakeMoney>(
+            &user1,
+            addr,
+            option::some(create_modifier(MODIFIER_MUL, 2))
+        );
+        timestamp::fast_forward_seconds(86400);
+        claim<coin::FakeMoney>(&user1);
+
+        let tx = borrow_global<RewardVault<coin::FakeMoney>>(addr).tx;
+        let reward_rate = borrow_global<RewardTransmitter<coin::FakeMoney>>(tx).reward_rate;
+        let expected = (reward_rate * 2) * 86400;
+        let balance = coin::balance<coin::FakeMoney>(user1_addr);
+        assert!(balance == expected, 0);
+
+        let new_modifier = create_modifier(MODIFIER_MUL, 3);
+        update_modifier<coin::FakeMoney>(
+            user1_addr,
+            option::some(new_modifier)
+        );
+        timestamp::fast_forward_seconds(86400);
+        claim<coin::FakeMoney>(&user1);
+
+        let expected = (reward_rate * 3) * 86400;
+        let balance2 = coin::balance<coin::FakeMoney>(user1_addr);
+        assert!(balance2 == expected + balance, 0);
     }
 }
 
