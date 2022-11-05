@@ -7,6 +7,8 @@ module MentaLabs::reward_vault {
     use aptos_framework::coin;
     use aptos_framework::timestamp;
 
+    friend MentaLabs::farm;
+
     /// Modifier kind variants.
     const MODIFIER_SUM: u8 = 0;
     /// Modifier kind variants.
@@ -55,9 +57,12 @@ module MentaLabs::reward_vault {
     /// Insufficient rewards in vault.
     const EINSUFFICIENT_REWARDS: u64 = 2;
 
-    fun update_accrued_rewards<CoinType>(receiver: &mut RewardReceiver<CoinType>, now: u64)
-        acquires RewardVault, RewardTransmitter
+    public(friend) fun update_accrued_rewards<CoinType>(recv_addr: address, now: u64)
+        acquires RewardVault, RewardReceiver, RewardTransmitter
     {
+        let receiver = borrow_global_mut<RewardReceiver<CoinType>>(recv_addr);
+        assert_reward_vault_exists<CoinType>(receiver.vh);
+
         let transmitter_addr = borrow_global<RewardVault<CoinType>>(receiver.vh).tx;
         let transmitter = borrow_global<RewardTransmitter<CoinType>>(transmitter_addr);
         let elapsed = now - receiver.last_update_ts;
@@ -94,6 +99,8 @@ module MentaLabs::reward_vault {
             error::already_exists(ERESOURCE_ALREADY_EXISTS)
         );
 
+        coin::register<CoinType>(&resource);
+
         move_to(&resource, RewardTransmitter<CoinType> {
             available: 0,
             num_receivers: 0,
@@ -116,13 +123,11 @@ module MentaLabs::reward_vault {
         assert_reward_vault_exists<CoinType>(addr);
 
         let tx_addr = borrow_global<RewardVault<CoinType>>(addr).tx;
+
+        coin::transfer<CoinType>(account, tx_addr, amount);
+
         let tx = borrow_global_mut<RewardTransmitter<CoinType>>(tx_addr);
         tx.available = tx.available + amount;
-
-        let tx_sig =
-            account::create_signer_with_capability(&tx.sign_capability);
-        coin::register<CoinType>(&tx_sig);
-        coin::transfer<CoinType>(account, tx_addr, amount);
     }
 
     public entry fun subscribe<CoinType>(account: &signer, vault: address)
@@ -194,11 +199,9 @@ module MentaLabs::reward_vault {
             error::not_found(ERESOURCE_DNE)
         );
 
+        update_accrued_rewards<CoinType>(addr, timestamp::now_seconds());
+
         let recv = borrow_global_mut<RewardReceiver<CoinType>>(addr);
-        assert_reward_vault_exists<CoinType>(recv.vh);
-
-        update_accrued_rewards<CoinType>(recv, timestamp::now_seconds());
-
         let vault = borrow_global<RewardVault<CoinType>>(recv.vh);
         let tx = borrow_global_mut<RewardTransmitter<CoinType>>(vault.tx);
         let reward = recv.accrued_rewards;
@@ -207,6 +210,11 @@ module MentaLabs::reward_vault {
 
         let tx_sig =
             account::create_signer_with_capability(&tx.sign_capability);
+
+        assert!(
+            coin::is_account_registered<CoinType>(signer::address_of(&tx_sig)),
+            error::invalid_state(EINSUFFICIENT_REWARDS)
+        );
 
         if (!coin::is_account_registered<CoinType>(signer::address_of(account))) {
             coin::register<CoinType>(account);
@@ -234,6 +242,30 @@ module MentaLabs::reward_vault {
         Modifier {
             kind,
             value
+        }
+    }
+
+    public fun get_modifier_value<CoinType>(
+        account: address
+    ): Option<u64> acquires RewardReceiver {
+        let recv = borrow_global<RewardReceiver<CoinType>>(account);
+        if (option::is_some(&recv.modifier)) {
+            let modifier = option::borrow(&recv.modifier);
+            option::some(modifier.value)
+        } else {
+            option::none()
+        }
+    }
+
+    public fun get_modifier_kind<CoinType>(
+        account: address
+    ): Option<u8> acquires RewardReceiver {
+        let recv = borrow_global<RewardReceiver<CoinType>>(account);
+        if (option::is_some(&recv.modifier)) {
+            let modifier = option::borrow(&recv.modifier);
+            option::some(modifier.kind)
+        } else {
+            option::none()
         }
     }
 
