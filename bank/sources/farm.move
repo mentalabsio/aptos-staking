@@ -275,6 +275,35 @@ module MentaLabs::farm {
     }
 
     #[test(creator = @0x111, user = @0x222, core_framework = @aptos_framework)]
+    public entry fun test_farm_basic(creator: &signer, user: &signer, core_framework: &signer) acquires Farm, Farmer {
+        use aptos_framework::timestamp;
+
+        let creator_addr = signer::address_of(creator);
+        let user_addr = signer::address_of(user);
+
+        let token_id = setup(creator, user, core_framework);
+        let farm_addr = find_farm_address(&creator_addr);
+
+        stake<FakeMoney>(user, token_id, farm_addr);
+        assert!(token::balance_of(user_addr, token_id) == 0, 1);
+
+        timestamp::fast_forward_seconds(500);
+
+        unstake<FakeMoney>(user, token_id, farm_addr);
+        assert!(token::balance_of(user_addr, token_id) == 1, 1);
+        assert!(coin::balance<FakeMoney>(user_addr) == 500 , 1);
+
+        stake<FakeMoney>(user, token_id, farm_addr);
+        assert!(token::balance_of(user_addr, token_id) == 0, 1);
+
+        timestamp::fast_forward_seconds(500);
+
+        unstake<FakeMoney>(user, token_id, farm_addr);
+        assert!(token::balance_of(user_addr, token_id) == 1, 1);
+        assert!(coin::balance<FakeMoney>(user_addr) == 1000 , 1);
+    }
+
+    #[test(creator = @0x111, user = @0x222, core_framework = @aptos_framework)]
     public entry fun test_farm_staking(creator: signer, user: signer, core_framework: signer)
         acquires Farm, Farmer
     {
