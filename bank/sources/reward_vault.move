@@ -237,6 +237,16 @@ module MentaLabs::reward_vault {
         }
     }
 
+    public entry fun is_subscribed<CoinType>(account: address, vault: address)
+        : bool acquires RewardVault
+    {
+        if (!exists<RewardVault<CoinType>>(vault)) {
+            return false
+        };
+        let RewardVault { rxs, tx: _ } = borrow_global<RewardVault<CoinType>>(vault);
+        vector::contains(rxs, &account)
+    }
+
     public fun assert_reward_vault_exists<CoinType>(addr: address) {
         assert!(
             exists<RewardVault<CoinType>>(addr),
