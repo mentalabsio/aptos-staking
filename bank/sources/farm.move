@@ -31,10 +31,16 @@ module MentaLabs::farm {
     const ERESOURCE_DNE: u64 = 1;
     /// Collection is not whitelisted.
     const ECOLLECTION_NOT_WHITELISTED: u64 = 2;
+    /// Collection is already whitelisted.
+    const ECOLLECTION_ALREADY_WHITELISTED: u64 = 3;
     /// NFT is already staked
-    const EALREADY_STAKED: u64 = 3;
+    const EALREADY_STAKED: u64 = 4;
     /// NFT is not staked
-    const ENOT_STAKED: u64 = 4;
+    const ENOT_STAKED: u64 = 5;
+    /// User is not registered in a farm.
+    const ENOT_REGISTERED: u64 = 6;
+    /// User is already registered in a farm.
+    const EALREADY_REGISTERED: u64 = 7;
 
     public entry fun publish_farm<R>(account: &signer) {
         let (farm, sign_cap) = account::create_resource_account(account, b"farm");
@@ -75,6 +81,12 @@ module MentaLabs::farm {
         );
 
         let farm = borrow_global_mut<Farm<R>>(farm_addr);
+
+        assert!(
+            !table::contains(&farm.whitelisted_collections, collection_name),
+            error::already_exists(ECOLLECTION_ALREADY_WHITELISTED)
+        );
+
         table::add(
             &mut farm.whitelisted_collections,
             collection_name,
@@ -95,7 +107,7 @@ module MentaLabs::farm {
 
         assert!(
             !is_registered<R>(&farmer_addr, farm),
-            error::already_exists(ERESOURCE_ALREADY_EXISTS)
+            error::already_exists(EALREADY_REGISTERED)
         );
 
         // Allocate farmer resource if it does not exist.
@@ -198,11 +210,10 @@ module MentaLabs::farm {
         };
     }
 
-    public entry fun claim_rewards<R>(account: &signer, farm: address) {
-        assert!(
-            exists<Farmer<R>>(signer::address_of(account)),
-            error::not_found(ERESOURCE_DNE)
-        );
+    public entry fun claim_rewards<R>(account: &signer, farm: address) acquires Farm {
+        let user_addr = signer::address_of(account);
+        assert!(exists<Farmer<R>>(user_addr), error::not_found(ERESOURCE_DNE));
+        assert!(is_registered<R>(&user_addr, farm), error::invalid_state(ENOT_REGISTERED));
         reward_vault::claim<R>(account, farm);
     }
 
