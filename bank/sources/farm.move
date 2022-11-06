@@ -73,11 +73,19 @@ module MentaLabs::farm {
             exists<Farm<R>>(farm_addr),
             error::not_found(ERESOURCE_DNE)
         );
+
         let farm = borrow_global_mut<Farm<R>>(farm_addr);
-        table::add(&mut farm.whitelisted_collections, collection_name, collection_reward_rate);
+        table::add(
+            &mut farm.whitelisted_collections,
+            collection_name,
+            collection_reward_rate
+        );
     }
 
-    public entry fun register_farmer<R>(account: &signer, farm: address) acquires Farm {
+    public entry fun register_farmer<R>(
+        account: &signer,
+        farm: address
+    ) acquires Farm {
         assert!(
             exists<Farm<R>>(farm),
             error::not_found(ERESOURCE_DNE)
@@ -126,20 +134,38 @@ module MentaLabs::farm {
         };
 
         let staked = table::borrow_mut(&mut farmer.staked, farm);
-        assert!(!vector::contains(staked, &token_id), error::invalid_state(EALREADY_STAKED));
+        assert!(
+            !vector::contains(staked, &token_id),
+            error::invalid_state(EALREADY_STAKED)
+        );
         vector::push_back(staked, token_id);
 
         // Lock the token in a bank
         bank::deposit(account, token_id, 1);
 
-        let identity = account::create_signer_with_capability(&borrow_global<Farm<R>>(farm).sign_cap);
-        let collection_modifier = table::borrow(&borrow_global<Farm<R>>(farm).whitelisted_collections, collection);
+        let collection_modifier = table::borrow(
+            &borrow_global<Farm<R>>(farm).whitelisted_collections,
+            collection
+        );
 
         if (!reward_vault::is_subscribed<R>(addr, farm)) {
-            let modifier = reward_vault::create_sum_modifier(*collection_modifier);
-            reward_vault::subscribe_with_modifier<R>(account, farm, modifier);
+            let modifier = reward_vault::create_sum_modifier(
+                *collection_modifier
+            );
+            reward_vault::subscribe_with_modifier<R>(
+                account,
+                farm,
+                modifier
+            );
         } else {
-            reward_vault::increase_modifier_value<R>(&identity, signer::address_of(account), *collection_modifier);
+            let identity = account::create_signer_with_capability(
+                &borrow_global<Farm<R>>(farm).sign_cap
+            );
+            reward_vault::increase_modifier_value<R>(
+                &identity,
+                signer::address_of(account),
+                *collection_modifier
+            );
         };
     }
 
@@ -165,7 +191,9 @@ module MentaLabs::farm {
         if (vector::is_empty(staked)) {
             reward_vault::unsubscribe<R>(account, farm);
         } else {
-            let identity = account::create_signer_with_capability(&borrow_global<Farm<R>>(farm).sign_cap);
+            let identity = account::create_signer_with_capability(
+                &borrow_global<Farm<R>>(farm).sign_cap
+            );
             reward_vault::decrease_modifier_value<R>(&identity, addr, 1);
         };
     }
@@ -182,16 +210,25 @@ module MentaLabs::farm {
         account::create_resource_address(creator, b"farm")
     }
 
-    public fun get_staked<R>(farmer: &address, farm: address): vector<token::TokenId> acquires Farmer {
+    public fun get_staked<R>(
+        farmer: &address,
+        farm: address
+    ): vector<token::TokenId> acquires Farmer {
         *table::borrow(&borrow_global<Farmer<R>>(*farmer).staked, farm)
     }
 
-    public fun is_registered<R>(farmer: &address, farm: address): bool acquires Farm {
+    public fun is_registered<R>(
+        farmer: &address,
+        farm: address
+    ): bool acquires Farm {
         let farm = borrow_global<Farm<R>>(farm);
         vector::contains(&farm.farmer_handles, farmer)
     }
 
-    public fun is_whitelisted<R>(farm: address, collection_name: String): bool acquires Farm {
+    public fun is_whitelisted<R>(
+        farm: address,
+        collection_name: String
+    ): bool acquires Farm {
         assert!(exists<Farm<R>>(farm), error::not_found(ERESOURCE_DNE));
         let whitelisted_collections =
             &borrow_global<Farm<R>>(farm).whitelisted_collections;
@@ -219,9 +256,11 @@ module MentaLabs::farm {
     }
 
     #[test_only]
-    public entry fun create_token(creator: &signer, collection_name: String, token_name: String):
-        token::TokenId
-    {
+    public entry fun create_token(
+        creator: &signer,
+        collection_name: String,
+        token_name: String
+    ): token::TokenId {
         use std::string;
 
         let token_mutation_setting = vector<bool>[false, false, false, false, true];
@@ -259,7 +298,11 @@ module MentaLabs::farm {
     }
 
     #[test_only]
-    public entry fun setup(creator: &signer, user: &signer, core_framework: &signer): token::TokenId acquires Farm {
+    public entry fun setup(
+        creator: &signer,
+        user: &signer,
+        core_framework: &signer
+    ): token::TokenId acquires Farm {
         use std::string;
         use aptos_framework::timestamp;
 
@@ -284,7 +327,8 @@ module MentaLabs::farm {
         // Create a new NFT.
         let collection_name = string::utf8(b"Hello, World");
         create_collection(creator);
-        let token_id = create_token(creator, collection_name, string::utf8(b"Token #1"));
+        let token_id =
+            create_token(creator, collection_name, string::utf8(b"Token #1"));
         token::direct_transfer(creator, user, token_id, 1);
 
         // Publish a new farm under creator account.
@@ -304,7 +348,11 @@ module MentaLabs::farm {
     }
 
     #[test(creator = @0x111, user = @0x222, core_framework = @aptos_framework)]
-    public entry fun test_farm_basic(creator: &signer, user: &signer, core_framework: &signer) acquires Farm, Farmer {
+    public entry fun test_farm_basic(
+        creator: &signer,
+        user: &signer,
+        core_framework: &signer
+    ) acquires Farm, Farmer {
         use aptos_framework::timestamp;
 
         let creator_addr = signer::address_of(creator);
@@ -333,9 +381,11 @@ module MentaLabs::farm {
     }
 
     #[test(creator = @0x111, user = @0x222, core_framework = @aptos_framework)]
-    public entry fun test_farm_staking(creator: signer, user: signer, core_framework: signer)
-        acquires Farm, Farmer
-    {
+    public entry fun test_farm_staking(
+        creator: signer,
+        user: signer,
+        core_framework: signer
+    ) acquires Farm, Farmer {
         use aptos_framework::timestamp;
         use std::string;
 
@@ -356,7 +406,11 @@ module MentaLabs::farm {
 
         {
             // Stake another token
-            let token_id = create_token(&creator, string::utf8(b"Hello, World"), string::utf8(b"Token #2"));
+            let token_id = create_token(
+                &creator,
+                string::utf8(b"Hello, World"),
+                string::utf8(b"Token #2")
+            );
             token::direct_transfer(&creator, &user, token_id, 1);
 
             stake<FakeMoney>(&user, token_id, farm_addr);
