@@ -187,6 +187,10 @@ module MentaLabs::farm {
         farm: address
     ) acquires Farm, Farmer {
         let addr = signer::address_of(account);
+        assert!(exists<Farmer<R>>(addr), error::not_found(ERESOURCE_DNE));
+        assert!(exists<Farm<R>>(farm), error::not_found(ERESOURCE_DNE));
+        assert!(is_registered<R>(&addr, farm), error::not_found(ENOT_REGISTERED));
+
         let farmer = borrow_global_mut<Farmer<R>>(addr);
         let staked = table::borrow_mut(&mut farmer.staked, farm);
 
