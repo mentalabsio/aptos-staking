@@ -12,16 +12,26 @@ module MentaLabs::farm {
     use MentaLabs::reward_vault;
     use MentaLabs::bank;
 
-    /// Farm resource.
+    /// Farm resource, stored in a resource account.
     /// Generic over R, which is the reward coin type.
     struct Farm<phantom R> has key {
+        /// Whitelist of collections that can be staked in the farm (keys),
+        /// and the reward rate for each collection (values).
         whitelisted_collections: Table<String, u64>,
+        /// Farmers' addresses.
         farmer_handles: vector<address>,
+        /// Signature capability.
         sign_cap: account::SignerCapability,
     }
 
+    /// Farmer resource, stored in the user account.
+    /// Generic over R, which is the reward coin type.
+    /// For now, only stores a table containing the farms and the staked tokens' TokenIds,
+    /// but can be extended to store other information.
     struct Farmer<phantom R> has key {
-        //  { [vaultAddress]: stakedNfts[] }
+        /// The same farmer can be registered in many farms.
+        /// This field is used to keep track of the farms the farmer is registered in (table keys),
+        /// and the token ids the farmer has staked in each farm.
         staked: Table<address, vector<token::TokenId>>,
     }
 
@@ -42,6 +52,7 @@ module MentaLabs::farm {
     /// User is already registered in a farm.
     const EALREADY_REGISTERED: u64 = 7;
 
+    /// Publishes a new farm under a new resource account.
     public entry fun publish_farm<R>(account: &signer) {
         let (farm, sign_cap) = account::create_resource_account(account, b"farm");
         coin::register<R>(&farm);
@@ -60,6 +71,7 @@ module MentaLabs::farm {
         });
     }
 
+    /// Add funds to the farm's reward vault.
     public entry fun fund_reward<R>(creator: &signer, amount: u64) acquires Farm {
         let farm_addr = find_farm_address(&signer::address_of(creator));
         coin::transfer<R>(creator, farm_addr, amount);
@@ -69,6 +81,16 @@ module MentaLabs::farm {
         reward_vault::fund_vault<R>(&farm_signer, amount);
     }
 
+    /// Withdraw funds from the farm's reward vault.
+    public entry fun withdraw_reward<R>(creator: &signer, amount: u64) acquires Farm {
+        let farm_addr = find_farm_address(&signer::address_of(creator));
+        let farm = borrow_global<Farm<R>>(farm_addr);
+        let farm_signer = account::create_signer_with_capability(&farm.sign_cap);
+        reward_vault::withdraw_funds<R>(&farm_signer, amount);
+        coin::transfer<R>(&farm_signer, signer::address_of(creator), amount);
+    }
+
+    /// Whitelist a collection for staking.
     public entry fun add_to_whitelist<R>(
         account: &signer,
         collection_name: String,
@@ -94,6 +116,7 @@ module MentaLabs::farm {
         );
     }
 
+    /// Register a farmer in a farm.
     public entry fun register_farmer<R>(
         account: &signer,
         farm: address
@@ -127,6 +150,7 @@ module MentaLabs::farm {
         vector::push_back(&mut farm.farmer_handles, farmer_addr);
     }
 
+    /// Stake an NFT in a farm.
     public entry fun stake<R>(
         account: &signer,
         token_id: token::TokenId,
@@ -181,6 +205,7 @@ module MentaLabs::farm {
         };
     }
 
+    /// Unstake an NFT from a farm.
     public entry fun unstake<R>(
         account: &signer,
         token_id: token::TokenId,
@@ -219,6 +244,7 @@ module MentaLabs::farm {
         };
     }
 
+    /// Claim rewards from a farm.
     public entry fun claim_rewards<R>(account: &signer, farm: address) acquires Farm {
         let user_addr = signer::address_of(account);
         assert!(exists<Farmer<R>>(user_addr), error::not_found(ERESOURCE_DNE));
