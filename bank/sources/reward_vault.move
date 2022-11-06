@@ -2,6 +2,7 @@ module MentaLabs::reward_vault {
     use std::vector;
     use std::signer;
     use std::error;
+    use std::table::{Self, Table};
     use std::option::{Self, Option};
     use aptos_framework::account;
     use aptos_framework::coin;
@@ -20,10 +21,7 @@ module MentaLabs::reward_vault {
         value: u64,
     }
 
-    /// Stores receiver information in the user account.
-    struct RewardReceiver<phantom CoinType> has key, drop {
-        /// Vault handle.
-        vh: address,
+    struct Vault has store, drop {
         /// Start timestamp.
         start_ts: u64,
         /// Accrued rewards.
@@ -32,6 +30,11 @@ module MentaLabs::reward_vault {
         last_update_ts: u64,
         /// Reward rate modifier.
         modifier: Option<Modifier>,
+    }
+
+    /// Stores receiver information in the user account.
+    struct RewardReceiver<phantom CoinType> has key {
+        vaults: Table<address, Vault>,
     }
 
     /// Stores transmission settings in a resource account, which will also hold the reward coins.
@@ -57,17 +60,20 @@ module MentaLabs::reward_vault {
     /// Insufficient rewards in vault.
     const EINSUFFICIENT_REWARDS: u64 = 2;
 
-    public(friend) fun update_accrued_rewards<CoinType>(recv_addr: address, now: u64)
+    public(friend) fun update_accrued_rewards<CoinType>(recv_addr: address, vault: address, now: u64)
         acquires RewardVault, RewardReceiver, RewardTransmitter
     {
-        let receiver = borrow_global_mut<RewardReceiver<CoinType>>(recv_addr);
-        assert_reward_vault_exists<CoinType>(receiver.vh);
+        let recv = borrow_global_mut<RewardReceiver<CoinType>>(recv_addr);
+        assert_reward_vault_exists<CoinType>(vault);
 
-        let transmitter_addr = borrow_global<RewardVault<CoinType>>(receiver.vh).tx;
+        let transmitter_addr = borrow_global<RewardVault<CoinType>>(vault).tx;
         let transmitter = borrow_global<RewardTransmitter<CoinType>>(transmitter_addr);
-        let elapsed = now - receiver.last_update_ts;
-        let reward_rate = if (option::is_some(&receiver.modifier)) {
-            let modifier = option::borrow(&receiver.modifier);
+
+        let vault = table::borrow_mut(&mut recv.vaults, vault);
+
+        let elapsed = now - vault.last_update_ts;
+        let reward_rate = if (option::is_some(&vault.modifier)) {
+            let modifier = option::borrow(&vault.modifier);
             if (modifier.kind == MODIFIER_SUM) {
                 transmitter.reward_rate + modifier.value
             } else {
@@ -76,8 +82,8 @@ module MentaLabs::reward_vault {
         } else {
             transmitter.reward_rate
         };
-        receiver.accrued_rewards = receiver.accrued_rewards + reward_rate * elapsed;
-        receiver.last_update_ts = now;
+        vault.accrued_rewards = vault.accrued_rewards + reward_rate * elapsed;
+        vault.last_update_ts = now;
     }
 
     /// Move a new RewardVault to account and create a transmitter
@@ -131,7 +137,7 @@ module MentaLabs::reward_vault {
     }
 
     public entry fun subscribe<CoinType>(account: &signer, vault: address)
-        acquires RewardVault, RewardTransmitter
+        acquires RewardVault, RewardReceiver, RewardTransmitter
     {
         internal_subscribe<CoinType>(account, vault, option::none());
     }
@@ -140,7 +146,7 @@ module MentaLabs::reward_vault {
         account: &signer,
         vault: address,
         modifier: Modifier
-    ) acquires RewardVault, RewardTransmitter {
+    ) acquires RewardVault, RewardReceiver, RewardTransmitter {
         internal_subscribe<CoinType>(account, vault, option::some(modifier));
     }
 
@@ -148,7 +154,7 @@ module MentaLabs::reward_vault {
         account: &signer,
         vault: address,
         modifier: Option<Modifier>
-    ) acquires RewardVault, RewardTransmitter {
+    ) acquires RewardVault, RewardReceiver, RewardTransmitter {
         let addr = signer::address_of(account);
         let  RewardVault { tx, rxs } =
             borrow_global_mut<RewardVault<CoinType>>(vault);
@@ -162,19 +168,36 @@ module MentaLabs::reward_vault {
         };
 
         let now_ts = timestamp::now_seconds();
-        move_to(account, RewardReceiver<CoinType> {
-            modifier,
-            vh: vault,
-            start_ts: now_ts,
-            accrued_rewards: 0,
-            last_update_ts: now_ts,
-        });
+
+        if (!exists<RewardReceiver<CoinType>>(addr)) {
+            let vaults = table::new();
+            table::add(&mut vaults, vault, Vault {
+                start_ts: now_ts,
+                accrued_rewards: 0,
+                last_update_ts: now_ts,
+                modifier,
+            });
+            move_to(account, RewardReceiver<CoinType> { vaults, });
+        } else {
+            let recv = borrow_global_mut<RewardReceiver<CoinType>>(addr);
+            assert!(
+                !table::contains(&recv.vaults, vault),
+                error::already_exists(ERESOURCE_ALREADY_EXISTS)
+            );
+            table::add(&mut recv.vaults, vault, Vault {
+                start_ts: now_ts,
+                accrued_rewards: 0,
+                last_update_ts: now_ts,
+                modifier,
+            });
+        };
+
     }
 
     public entry fun unsubscribe<CoinType>(account: &signer, vault: address)
         acquires RewardVault, RewardReceiver, RewardTransmitter
     {
-        claim<CoinType>(account);
+        claim<CoinType>(account, vault);
 
         let addr = signer::address_of(account);
         let RewardVault { tx, rxs } =
@@ -187,22 +210,11 @@ module MentaLabs::reward_vault {
         vector::remove(rxs, i);
         tx.num_receivers = vector::length(rxs);
 
-        destroy_receiver<CoinType>(account);
+        let recv = borrow_global_mut<RewardReceiver<CoinType>>(addr);
+        table::remove(&mut recv.vaults, vault);
     }
 
-    fun destroy_receiver<CoinType>(account: &signer) acquires RewardReceiver {
-        let addr = signer::address_of(account);
-        let receiver = move_from<RewardReceiver<CoinType>>(addr);
-        let RewardReceiver {
-            start_ts: _,
-            accrued_rewards: _,
-            last_update_ts: _,
-            vh: _,
-            modifier: _
-        } = receiver;
-    }
-
-    public entry fun claim<CoinType>(account: &signer)
+    public entry fun claim<CoinType>(account: &signer, vault: address)
         acquires RewardVault, RewardReceiver, RewardTransmitter
     {
         let addr = signer::address_of(account);
@@ -211,12 +223,13 @@ module MentaLabs::reward_vault {
             error::not_found(ERESOURCE_DNE)
         );
 
-        update_accrued_rewards<CoinType>(addr, timestamp::now_seconds());
+        update_accrued_rewards<CoinType>(addr, vault, timestamp::now_seconds());
 
         let recv = borrow_global_mut<RewardReceiver<CoinType>>(addr);
-        let vault = borrow_global<RewardVault<CoinType>>(recv.vh);
-        let tx = borrow_global_mut<RewardTransmitter<CoinType>>(vault.tx);
-        let reward = recv.accrued_rewards;
+        let vault_ref = table::borrow_mut(&mut recv.vaults, vault);
+        let reward_vault = borrow_global<RewardVault<CoinType>>(vault);
+        let tx = borrow_global_mut<RewardTransmitter<CoinType>>(reward_vault.tx);
+        let reward = vault_ref.accrued_rewards;
 
         assert!(reward <= tx.available, error::invalid_state(EINSUFFICIENT_REWARDS));
 
@@ -231,34 +244,50 @@ module MentaLabs::reward_vault {
         coin::transfer<CoinType>(&tx_sig, addr, reward);
 
         tx.available = tx.available - reward;
-
-        recv.accrued_rewards = 0;
+        vault_ref.accrued_rewards = 0;
     }
 
     public(friend) fun increase_modifier_value<CoinType>(
+        vault: &signer,
         account: address,
         lhs: u64
     ) acquires RewardReceiver {
+        let vault_addr = signer::address_of(vault);
         let recv = borrow_global<RewardReceiver<CoinType>>(account);
-        let Modifier { kind, value } = option::borrow_with_default(&recv.modifier, &Modifier { value: 0, kind: MODIFIER_MUL });
-        update_modifier<CoinType>(account, option::some(Modifier { kind: *kind, value: *value + lhs } ));
+        assert!(table::contains(&recv.vaults, vault_addr), error::not_found(ERESOURCE_DNE));
+
+        let vault_ref = table::borrow(&recv.vaults, vault_addr);
+        let Modifier { kind, value } = option::borrow_with_default(&vault_ref.modifier, &Modifier { value: 1, kind: MODIFIER_MUL });
+        update_modifier<CoinType>(vault, account, option::some(Modifier { kind: *kind, value: *value + lhs } ));
     }
 
     public(friend) fun decrease_modifier_value<CoinType>(
+        vault: &signer,
         account: address,
         lhs: u64
     ) acquires RewardReceiver {
+        let vault_addr = signer::address_of(vault);
         let recv = borrow_global<RewardReceiver<CoinType>>(account);
-        let Modifier { kind, value } = option::borrow_with_default(&recv.modifier, &Modifier { value: 1, kind: MODIFIER_MUL });
-        update_modifier<CoinType>(account, option::some(Modifier { kind: *kind, value: *value - lhs } ));
+        assert!(table::contains(&recv.vaults, vault_addr), error::not_found(ERESOURCE_DNE));
+
+        let vault_ref = table::borrow(&recv.vaults, vault_addr);
+        let Modifier { kind, value } = option::borrow_with_default(&vault_ref.modifier, &Modifier { value: 1, kind: MODIFIER_MUL });
+        update_modifier<CoinType>(vault, account, option::some(Modifier { kind: *kind, value: *value - lhs } ));
     }
 
     public(friend) fun update_modifier<CoinType>(
+        vault: &signer,
         account: address,
         modifier: Option<Modifier>
     ) acquires RewardReceiver {
+        let vault_addr = signer::address_of(vault);
         let receiver = borrow_global_mut<RewardReceiver<CoinType>>(account);
-        receiver.modifier = modifier;
+        assert!(
+            table::contains(&receiver.vaults, vault_addr),
+            error::not_found(ERESOURCE_DNE)
+        );
+        let vault_ref = table::borrow_mut(&mut receiver.vaults, vault_addr);
+        vault_ref.modifier = modifier;
     }
 
     public(friend) fun create_sum_modifier(value: u64): Modifier {
@@ -270,10 +299,15 @@ module MentaLabs::reward_vault {
     }
 
     // get modifier value
-    public(friend) fun get_modifier<CoinType>(account: address): u64 acquires RewardReceiver {
+    public(friend) fun get_modifier<CoinType>(account: address, vault: address): u64 acquires RewardReceiver {
         assert!(exists<RewardReceiver<CoinType>>(account), error::not_found(ERESOURCE_DNE));
+        assert!(exists<RewardVault<CoinType>>(vault), error::not_found(ERESOURCE_DNE));
+
         let recv = borrow_global<RewardReceiver<CoinType>>(account);
-        let Modifier { kind: _, value } = option::borrow_with_default(&recv.modifier, &Modifier { value: 0, kind: MODIFIER_MUL });
+        assert!(table::contains(&recv.vaults, vault), error::not_found(ERESOURCE_DNE));
+
+        let vault = table::borrow(&recv.vaults, vault);
+        let Modifier { kind: _, value } = option::borrow_with_default(&vault.modifier, &Modifier { value: 0, kind: MODIFIER_MUL });
         *value
     }
 
@@ -324,7 +358,9 @@ module MentaLabs::reward_vault {
     }
 
     #[test(account = @0x111, user1 = @0x112, core_framework = @aptos_framework)]
-    public entry fun test_subscribe(account: signer, user1: signer, core_framework: signer) acquires RewardVault, RewardTransmitter {
+    public entry fun test_subscribe(account: signer, user1: signer, core_framework: signer)
+        acquires RewardVault, RewardReceiver, RewardTransmitter
+    {
         account::create_account_for_test(signer::address_of(&user1));
         let addr = signer::address_of(&account);
         setup(&account, &core_framework);
@@ -350,7 +386,7 @@ module MentaLabs::reward_vault {
         timestamp::fast_forward_seconds(86400);
         unsubscribe<coin::FakeMoney>(&user1, addr);
 
-        assert!(!exists<RewardReceiver<coin::FakeMoney>>(user_addr), 0);
+        // assert!(!exists<RewardReceiver<coin::FakeMoney>>(user_addr), 0);
     }
 
     #[test(account = @0x111, user1 = @0x112, core_framework = @aptos_framework)]
@@ -364,7 +400,7 @@ module MentaLabs::reward_vault {
         setup(&account, &core_framework);
         subscribe<coin::FakeMoney>(&user1, addr);
         timestamp::fast_forward_seconds(86400);
-        claim<coin::FakeMoney>(&user1);
+        claim<coin::FakeMoney>(&user1, addr);
 
         let tx = borrow_global<RewardVault<coin::FakeMoney>>(addr).tx;
         let reward_rate = borrow_global<RewardTransmitter<coin::FakeMoney>>(tx).reward_rate;
@@ -388,7 +424,7 @@ module MentaLabs::reward_vault {
             create_mul_modifier(2)
         );
         timestamp::fast_forward_seconds(86400);
-        claim<coin::FakeMoney>(&user1);
+        claim<coin::FakeMoney>(&user1, addr);
 
         let tx = borrow_global<RewardVault<coin::FakeMoney>>(addr).tx;
         let reward_rate = borrow_global<RewardTransmitter<coin::FakeMoney>>(tx).reward_rate;
@@ -412,7 +448,7 @@ module MentaLabs::reward_vault {
             create_mul_modifier(2)
         );
         timestamp::fast_forward_seconds(86400);
-        claim<coin::FakeMoney>(&user1);
+        claim<coin::FakeMoney>(&user1, addr);
 
         let tx = borrow_global<RewardVault<coin::FakeMoney>>(addr).tx;
         let reward_rate = borrow_global<RewardTransmitter<coin::FakeMoney>>(tx).reward_rate;
@@ -422,11 +458,12 @@ module MentaLabs::reward_vault {
 
         let new_modifier = create_mul_modifier(3);
         update_modifier<coin::FakeMoney>(
+            &account,
             user1_addr,
             option::some(new_modifier)
         );
         timestamp::fast_forward_seconds(86400);
-        claim<coin::FakeMoney>(&user1);
+        claim<coin::FakeMoney>(&user1, addr);
 
         let expected = (reward_rate * 3) * 86400;
         let balance2 = coin::balance<coin::FakeMoney>(user1_addr);

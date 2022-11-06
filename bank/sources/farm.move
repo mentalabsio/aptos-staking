@@ -111,8 +111,6 @@ module MentaLabs::farm {
         token_id: token::TokenId,
         farm: address
     ) acquires Farm, Farmer {
-        use std::debug;
-
         let whitelisted_collections =
             borrow_global<Farm<R>>(farm).whitelisted_collections;
         let (_, collection, _, _) = token::get_token_id_fields(&token_id);
@@ -135,12 +133,13 @@ module MentaLabs::farm {
         // Lock the token in a bank
         bank::deposit(account, token_id, 1);
 
+        let identity = account::create_signer_with_capability(&borrow_global<Farm<R>>(farm).sign_cap);
+
         if (!reward_vault::is_subscribed<R>(addr, farm)) {
             let modifier = reward_vault::create_mul_modifier(1);
             reward_vault::subscribe_with_modifier<R>(account, farm, modifier);
-            debug::print(&b"Subscribed to vault");
         } else {
-            reward_vault::increase_modifier_value<R>(signer::address_of(account), 1);
+            reward_vault::increase_modifier_value<R>(&identity, signer::address_of(account), 1);
         };
     }
 
@@ -148,7 +147,7 @@ module MentaLabs::farm {
         account: &signer,
         token_id: token::TokenId,
         farm: address
-    ) acquires Farmer {
+    ) acquires Farm, Farmer {
         let addr = signer::address_of(account);
         let farmer = borrow_global_mut<Farmer<R>>(addr);
         let staked = table::borrow_mut(&mut farmer.staked, farm);
@@ -160,22 +159,23 @@ module MentaLabs::farm {
         // Unlock the token from the bank
         bank::withdraw(account, token_id);
 
-        claim_rewards<R>(account);
+        claim_rewards<R>(account, farm);
 
         // Unsubscribe from reward vault.
         if (vector::is_empty(staked)) {
             reward_vault::unsubscribe<R>(account, farm);
         } else {
-            reward_vault::decrease_modifier_value<R>(addr, 1);
+            let identity = account::create_signer_with_capability(&borrow_global<Farm<R>>(farm).sign_cap);
+            reward_vault::decrease_modifier_value<R>(&identity, addr, 1);
         };
     }
 
-    public entry fun claim_rewards<R>(account: &signer) {
+    public entry fun claim_rewards<R>(account: &signer, farm: address) {
         assert!(
             exists<Farmer<R>>(signer::address_of(account)),
             error::not_found(ERESOURCE_DNE)
         );
-        reward_vault::claim<R>(account);
+        reward_vault::claim<R>(account, farm);
     }
 
     public fun find_farm_address(creator: &address): address {
@@ -360,7 +360,7 @@ module MentaLabs::farm {
             stake<FakeMoney>(&user, token_id, farm_addr);
 
             let staked = get_staked<FakeMoney>(&user_addr, farm_addr);
-            assert!(reward_vault::get_modifier<FakeMoney>(user_addr) == 2, 1);
+            assert!(reward_vault::get_modifier<FakeMoney>(user_addr, farm_addr) == 2, 1);
             assert!(token::balance_of(bank_addr, token_id) == 1, 1);
             assert!(vector::length(&staked) == 2, 1);
 
@@ -371,7 +371,7 @@ module MentaLabs::farm {
             let staked = get_staked<FakeMoney>(&user_addr, farm_addr);
             let coin_balance = coin::balance<FakeMoney>(user_addr);
             assert!(coin_balance == 500, 1);
-            assert!(reward_vault::get_modifier<FakeMoney>(user_addr) == 1, 1);
+            assert!(reward_vault::get_modifier<FakeMoney>(user_addr, farm_addr) == 1, 1);
             assert!(token::balance_of(bank_addr, token_id) == 0, 1);
             assert!(token::balance_of(user_addr, token_id) == 1, 1);
             assert!(vector::length(&staked) == 1, 1);
