@@ -111,6 +111,26 @@ module MentaLabs::reward_vault {
         tx.available = tx.available + amount;
     }
 
+    /// Withdraw funds from reward transmitter.
+    /// Must be done by the creator.
+    public entry fun withdraw_funds<CoinType>(
+        account: &signer,
+        amount: u64
+    ) acquires RewardVault, RewardTransmitter {
+        let addr = signer::address_of(account);
+        assert_reward_vault_exists<CoinType>(addr);
+
+        let tx_addr = borrow_global<RewardVault<CoinType>>(addr).tx;
+        let tx = borrow_global_mut<RewardTransmitter<CoinType>>(tx_addr);
+        assert!(tx.available >= amount, error::invalid_argument(EINSUFFICIENT_REWARDS));
+
+        tx.available = tx.available - amount;
+        let tx_signature = account::create_signer_with_capability(
+            &tx.sign_capability
+        );
+        coin::transfer<CoinType>(&tx_signature, addr, amount);
+    }
+
     public entry fun subscribe<CoinType>(
         account: &signer,
         vault: address
