@@ -347,7 +347,24 @@ module MentaLabs::reward_vault {
         *value
     }
 
-    public entry fun is_subscribed<CoinType>(
+    public fun get_accrued_rewards<CoinType>(
+        account: address,
+        vault: address
+    ): u64 acquires RewardVault, RewardReceiver, RewardTransmitter {
+        assert!(exists<RewardReceiver<CoinType>>(account), error::not_found(ERESOURCE_DNE));
+        assert!(exists<RewardVault<CoinType>>(vault), error::not_found(ERESOURCE_DNE));
+        assert!(is_subscribed<CoinType>(account, vault), error::not_found(ERESOURCE_DNE));
+
+        update_accrued_rewards<CoinType>(account, vault, timestamp::now_seconds());
+
+        let recv = borrow_global<RewardReceiver<CoinType>>(account);
+        assert!(table::contains(&recv.vaults, vault), error::not_found(ERESOURCE_DNE));
+
+        let vault = table::borrow(&recv.vaults, vault);
+        vault.accrued_rewards
+    }
+
+    public fun is_subscribed<CoinType>(
         account: address,
         vault: address
     ): bool acquires RewardVault {
@@ -498,11 +515,14 @@ module MentaLabs::reward_vault {
             create_mul_modifier(2)
         );
         timestamp::fast_forward_seconds(86400);
-        claim<coin::FakeMoney>(&user1, addr);
 
         let tx = borrow_global<RewardVault<coin::FakeMoney>>(addr).tx;
         let reward_rate = borrow_global<RewardTransmitter<coin::FakeMoney>>(tx).reward_rate;
         let expected = (reward_rate * 2) * 86400;
+        let accrued_rewards = get_accrued_rewards<coin::FakeMoney>(user1_addr, addr);
+        assert!(accrued_rewards == expected, 0);
+
+        claim<coin::FakeMoney>(&user1, addr);
         let balance = coin::balance<coin::FakeMoney>(user1_addr);
         assert!(balance == expected, 0);
 
