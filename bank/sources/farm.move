@@ -135,8 +135,10 @@ module MentaLabs::farm {
 
         // Allocate farmer resource if it does not exist.
         if (!exists<Farmer<R>>(farmer_addr)) {
+            let staked = table::new();
+            table::add(&mut staked, farm, vector::empty());
             move_to(account, Farmer<R> {
-                staked: table::new(),
+                staked,
             });
         };
 
@@ -165,10 +167,6 @@ module MentaLabs::farm {
         };
 
         let farmer = borrow_global_mut<Farmer<R>>(addr);
-        if (!table::contains(&farmer.staked, farm)) {
-            table::add(&mut farmer.staked, farm, vector::empty());
-        };
-
         let staked = table::borrow_mut(&mut farmer.staked, farm);
         assert!(
             !vector::contains(staked, &token_id),
