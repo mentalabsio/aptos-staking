@@ -282,7 +282,7 @@ module MentaLabs::reward_vault {
         vault: &signer,
         account: address,
         lhs: u64
-    ) acquires RewardReceiver {
+    ) acquires RewardVault, RewardReceiver, RewardTransmitter {
         let vault_addr = signer::address_of(vault);
         let recv = borrow_global<RewardReceiver<CoinType>>(account);
         assert!(table::contains(&recv.vaults, vault_addr), error::not_found(ERESOURCE_DNE));
@@ -296,7 +296,7 @@ module MentaLabs::reward_vault {
         vault: &signer,
         account: address,
         lhs: u64
-    ) acquires RewardReceiver {
+    ) acquires RewardVault, RewardReceiver, RewardTransmitter {
         let vault_addr = signer::address_of(vault);
         let recv = borrow_global<RewardReceiver<CoinType>>(account);
         assert!(table::contains(&recv.vaults, vault_addr), error::not_found(ERESOURCE_DNE));
@@ -310,8 +310,11 @@ module MentaLabs::reward_vault {
         vault: &signer,
         account: address,
         modifier: Option<Modifier>
-    ) acquires RewardReceiver {
+    ) acquires RewardVault, RewardReceiver, RewardTransmitter {
         let vault_addr = signer::address_of(vault);
+
+        update_accrued_rewards<CoinType>(account, vault_addr, timestamp::now_seconds());
+
         let receiver = borrow_global_mut<RewardReceiver<CoinType>>(account);
         assert!(
             table::contains(&receiver.vaults, vault_addr),
