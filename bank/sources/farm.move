@@ -15,7 +15,7 @@ module MentaLabs::farm {
     /// Farm resource.
     /// Generic over R, which is the reward coin type.
     struct Farm<phantom R> has key {
-        whitelisted_collections: vector<String>,
+        whitelisted_collections: Table<String, u64>,
         farmer_handles: vector<address>,
         sign_cap: account::SignerCapability,
     }
@@ -36,10 +36,10 @@ module MentaLabs::farm {
     /// NFT is not staked
     const ENOT_STAKED: u64 = 4;
 
-    public entry fun publish_farm<R>(account: &signer, reward_rate: u64) {
+    public entry fun publish_farm<R>(account: &signer) {
         let (farm, sign_cap) = account::create_resource_account(account, b"farm");
         coin::register<R>(&farm);
-        reward_vault::publish_reward_vault<R>(&farm, reward_rate);
+        reward_vault::publish_reward_vault<R>(&farm, 0);
 
         let farm_addr = signer::address_of(&farm);
         assert!(
@@ -50,7 +50,7 @@ module MentaLabs::farm {
         move_to(&farm, Farm<R> {
             sign_cap,
             farmer_handles: vector::empty(),
-            whitelisted_collections: vector::empty(),
+            whitelisted_collections: table::new(),
         });
     }
 
@@ -65,7 +65,8 @@ module MentaLabs::farm {
 
     public entry fun add_to_whitelist<R>(
         account: &signer,
-        collection_name: String
+        collection_name: String,
+        collection_reward_rate: u64,
     ) acquires Farm {
         let farm_addr = find_farm_address(&signer::address_of(account));
         assert!(
@@ -73,7 +74,7 @@ module MentaLabs::farm {
             error::not_found(ERESOURCE_DNE)
         );
         let farm = borrow_global_mut<Farm<R>>(farm_addr);
-        vector::push_back(&mut farm.whitelisted_collections, collection_name)
+        table::add(&mut farm.whitelisted_collections, collection_name, collection_reward_rate);
     }
 
     public entry fun register_farmer<R>(account: &signer, farm: address) acquires Farm {
@@ -111,10 +112,8 @@ module MentaLabs::farm {
         token_id: token::TokenId,
         farm: address
     ) acquires Farm, Farmer {
-        let whitelisted_collections =
-            borrow_global<Farm<R>>(farm).whitelisted_collections;
         let (_, collection, _, _) = token::get_token_id_fields(&token_id);
-        assert!(vector::contains(&whitelisted_collections, &collection), 1);
+        assert!(is_whitelisted<R>(farm, collection), 1);
 
         let addr = signer::address_of(account);
         if (!is_registered<R>(&addr, farm)) {
@@ -134,12 +133,13 @@ module MentaLabs::farm {
         bank::deposit(account, token_id, 1);
 
         let identity = account::create_signer_with_capability(&borrow_global<Farm<R>>(farm).sign_cap);
+        let collection_modifier = table::borrow(&borrow_global<Farm<R>>(farm).whitelisted_collections, collection);
 
         if (!reward_vault::is_subscribed<R>(addr, farm)) {
-            let modifier = reward_vault::create_mul_modifier(1);
+            let modifier = reward_vault::create_sum_modifier(*collection_modifier);
             reward_vault::subscribe_with_modifier<R>(account, farm, modifier);
         } else {
-            reward_vault::increase_modifier_value<R>(&identity, signer::address_of(account), 1);
+            reward_vault::increase_modifier_value<R>(&identity, signer::address_of(account), *collection_modifier);
         };
     }
 
@@ -194,8 +194,8 @@ module MentaLabs::farm {
     public fun is_whitelisted<R>(farm: address, collection_name: String): bool acquires Farm {
         assert!(exists<Farm<R>>(farm), error::not_found(ERESOURCE_DNE));
         let whitelisted_collections =
-            borrow_global<Farm<R>>(farm).whitelisted_collections;
-        vector::contains(&whitelisted_collections, &collection_name)
+            &borrow_global<Farm<R>>(farm).whitelisted_collections;
+        table::contains(whitelisted_collections, collection_name)
     }
 
     #[test_only]
@@ -288,11 +288,13 @@ module MentaLabs::farm {
         token::direct_transfer(creator, user, token_id, 1);
 
         // Publish a new farm under creator account.
-        publish_farm<FakeMoney>(creator, 1);
+        publish_farm<FakeMoney>(creator);
         let farm_addr = find_farm_address(&creator_addr);
 
+
         // Whitelist the newly created collection.
-        add_to_whitelist<FakeMoney>(creator, collection_name);
+        let collection_reward_rate = 1;
+        add_to_whitelist<FakeMoney>(creator, collection_name, collection_reward_rate);
         assert!(is_whitelisted<FakeMoney>(farm_addr, collection_name), 1);
 
         // Fund the farm reward.
