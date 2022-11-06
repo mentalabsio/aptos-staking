@@ -207,10 +207,15 @@ module MentaLabs::farm {
         if (vector::is_empty(staked)) {
             reward_vault::unsubscribe<R>(account, farm);
         } else {
+            let (_, collection, _, _) = token::get_token_id_fields(&token_id);
+            let collection_modifier = table::borrow(
+                &borrow_global<Farm<R>>(farm).whitelisted_collections,
+                collection
+            );
             let identity = account::create_signer_with_capability(
                 &borrow_global<Farm<R>>(farm).sign_cap
             );
-            reward_vault::decrease_modifier_value<R>(&identity, addr, 1);
+            reward_vault::decrease_modifier_value<R>(&identity, addr, *collection_modifier);
         };
     }
 
