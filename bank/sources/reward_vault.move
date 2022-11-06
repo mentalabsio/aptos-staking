@@ -157,7 +157,7 @@ module MentaLabs::reward_vault {
         let tx = borrow_global_mut<RewardTransmitter<CoinType>>(*tx);
 
         vector::push_back(rxs, addr);
-        tx.num_receivers = vector::length(rxs);
+        tx.num_receivers = tx.num_receivers + 1;
 
         if (!coin::is_account_registered<CoinType>(addr)) {
             coin::register<CoinType>(account);
@@ -194,18 +194,19 @@ module MentaLabs::reward_vault {
         account: &signer,
         vault: address
     ) acquires RewardVault, RewardReceiver, RewardTransmitter {
+        // claim accrued rewards.
         claim<CoinType>(account, vault);
 
-        let addr = signer::address_of(account);
         let RewardVault { tx, rxs } =
             borrow_global_mut<RewardVault<CoinType>>(vault);
         let tx = borrow_global_mut<RewardTransmitter<CoinType>>(*tx);
 
+        let addr = signer::address_of(account);
         let (exist, i) = vector::index_of(rxs, &addr);
         assert!(exist, error::not_found(ERESOURCE_DNE));
 
         vector::remove(rxs, i);
-        tx.num_receivers = vector::length(rxs);
+        tx.num_receivers = tx.num_receivers - 1;
 
         let recv = borrow_global_mut<RewardReceiver<CoinType>>(addr);
         table::remove(&mut recv.vaults, vault);
@@ -216,10 +217,13 @@ module MentaLabs::reward_vault {
         vault: address
     ) acquires RewardVault, RewardReceiver, RewardTransmitter {
         let addr = signer::address_of(account);
+
         assert!(
             exists<RewardReceiver<CoinType>>(addr),
             error::not_found(ERESOURCE_DNE)
         );
+
+        assert!(is_subscribed<CoinType>(addr, vault), error::not_found(ERESOURCE_DNE));
 
         update_accrued_rewards<CoinType>(addr, vault, timestamp::now_seconds());
 
