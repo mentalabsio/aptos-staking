@@ -3,6 +3,7 @@ module MentaLabs::farm {
     use std::vector;
     use std::signer;
     use std::error;
+    use std::table::{Self, Table};
 
     use aptos_token::token;
     use aptos_framework::account;
@@ -20,7 +21,8 @@ module MentaLabs::farm {
     }
 
     struct Farmer<phantom R> has key {
-        staked: vector<token::TokenId>,
+        //  { [vaultAddress]: stakedNfts[] }
+        staked: Table<address, vector<token::TokenId>>,
     }
 
     /// Resource already exists.
@@ -81,15 +83,25 @@ module MentaLabs::farm {
         );
 
         let farmer_addr = signer::address_of(account);
+
         assert!(
-            !exists<Farmer<R>>(farmer_addr),
+            !is_registered<R>(&farmer_addr, farm),
             error::already_exists(ERESOURCE_ALREADY_EXISTS)
         );
 
-        move_to(account, Farmer<R> {
-            staked: vector::empty(),
-        });
+        // Allocate farmer resource if it does not exist.
+        if (!exists<Farmer<R>>(farmer_addr)) {
+            move_to(account, Farmer<R> {
+                staked: table::new(),
+            });
+        };
 
+        // Publish a bank for the farmer.
+        if (!bank::bank_exists(&farmer_addr)) {
+            bank::publish_bank(account);
+        };
+
+        // Register farmer in farm.
         let farm = borrow_global_mut<Farm<R>>(farm);
         vector::push_back(&mut farm.farmer_handles, farmer_addr);
     }
@@ -99,30 +111,34 @@ module MentaLabs::farm {
         token_id: token::TokenId,
         farm: address
     ) acquires Farm, Farmer {
+        use std::debug;
+
         let whitelisted_collections =
             borrow_global<Farm<R>>(farm).whitelisted_collections;
         let (_, collection, _, _) = token::get_token_id_fields(&token_id);
         assert!(vector::contains(&whitelisted_collections, &collection), 1);
 
         let addr = signer::address_of(account);
-
         if (!is_registered<R>(&addr, farm)) {
             register_farmer<R>(account, farm);
         };
 
         let farmer = borrow_global_mut<Farmer<R>>(addr);
-        assert!(!vector::contains(&farmer.staked, &token_id), error::invalid_state(EALREADY_STAKED));
-        vector::push_back(&mut farmer.staked, token_id);
+        if (!table::contains(&farmer.staked, farm)) {
+            table::add(&mut farmer.staked, farm, vector::empty());
+        };
+
+        let staked = table::borrow_mut(&mut farmer.staked, farm);
+        assert!(!vector::contains(staked, &token_id), error::invalid_state(EALREADY_STAKED));
+        vector::push_back(staked, token_id);
 
         // Lock the token in a bank
-        if (!bank::bank_exists(&addr)) {
-            bank::publish_bank(account);
-        };
         bank::deposit(account, token_id, 1);
 
         if (!reward_vault::is_subscribed<R>(addr, farm)) {
             let modifier = reward_vault::create_mul_modifier(1);
             reward_vault::subscribe_with_modifier<R>(account, farm, modifier);
+            debug::print(&b"Subscribed to vault");
         } else {
             reward_vault::increase_modifier_value<R>(signer::address_of(account), 1);
         };
@@ -135,10 +151,11 @@ module MentaLabs::farm {
     ) acquires Farmer {
         let addr = signer::address_of(account);
         let farmer = borrow_global_mut<Farmer<R>>(addr);
+        let staked = table::borrow_mut(&mut farmer.staked, farm);
 
-        let (exist, index) = vector::index_of(&farmer.staked, &token_id);
+        let (exist, index) = vector::index_of(staked, &token_id);
         assert!(exist, error::invalid_state(ENOT_STAKED));
-        vector::remove(&mut farmer.staked, index);
+        vector::remove(staked, index);
 
         // Unlock the token from the bank
         bank::withdraw(account, token_id);
@@ -146,7 +163,7 @@ module MentaLabs::farm {
         claim_rewards<R>(account);
 
         // Unsubscribe from reward vault.
-        if (reward_vault::get_modifier<R>(addr) == 1) {
+        if (vector::is_empty(staked)) {
             reward_vault::unsubscribe<R>(account, farm);
         } else {
             reward_vault::decrease_modifier_value<R>(addr, 1);
@@ -165,13 +182,13 @@ module MentaLabs::farm {
         account::create_resource_address(creator, b"farm")
     }
 
-    public fun get_staked<R>(farmer: &address): vector<token::TokenId> acquires Farmer {
-        borrow_global<Farmer<R>>(*farmer).staked
+    public fun get_staked<R>(farmer: &address, farm: address): vector<token::TokenId> acquires Farmer {
+        *table::borrow(&borrow_global<Farmer<R>>(*farmer).staked, farm)
     }
 
     public fun is_registered<R>(farmer: &address, farm: address): bool acquires Farm {
         let farm = borrow_global<Farm<R>>(farm);
-        vector::contains(&farm.farmer_handles, farmer) && exists<Farmer<R>>(*farmer)
+        vector::contains(&farm.farmer_handles, farmer)
     }
 
     public fun is_whitelisted<R>(farm: address, collection_name: String): bool acquires Farm {
@@ -329,7 +346,7 @@ module MentaLabs::farm {
 
         let bank_addr = bank::get_bank_address(&user_addr);
 
-        let staked = get_staked<FakeMoney>(&user_addr);
+        let staked = get_staked<FakeMoney>(&user_addr, farm_addr);
         bank::assert_bank_exists(&user_addr);
         assert!(reward_vault::is_subscribed<FakeMoney>(user_addr, farm_addr), 1);
         assert!(token::balance_of(bank_addr, token_id) == 1, 1);
@@ -342,7 +359,7 @@ module MentaLabs::farm {
 
             stake<FakeMoney>(&user, token_id, farm_addr);
 
-            let staked = get_staked<FakeMoney>(&user_addr);
+            let staked = get_staked<FakeMoney>(&user_addr, farm_addr);
             assert!(reward_vault::get_modifier<FakeMoney>(user_addr) == 2, 1);
             assert!(token::balance_of(bank_addr, token_id) == 1, 1);
             assert!(vector::length(&staked) == 2, 1);
@@ -351,7 +368,7 @@ module MentaLabs::farm {
 
             unstake<FakeMoney>(&user, token_id, farm_addr);
 
-            let staked = get_staked<FakeMoney>(&user_addr);
+            let staked = get_staked<FakeMoney>(&user_addr, farm_addr);
             let coin_balance = coin::balance<FakeMoney>(user_addr);
             assert!(coin_balance == 500, 1);
             assert!(reward_vault::get_modifier<FakeMoney>(user_addr) == 1, 1);
@@ -363,7 +380,7 @@ module MentaLabs::farm {
         timestamp::fast_forward_seconds(500);
         unstake<FakeMoney>(&user, token_id, farm_addr);
 
-        let staked = get_staked<FakeMoney>(&user_addr);
+        let staked = get_staked<FakeMoney>(&user_addr, farm_addr);
         assert!(coin::balance<FakeMoney>(user_addr) == 1000 , 1);
         assert!(!reward_vault::is_subscribed<FakeMoney>(user_addr, farm_addr), 1);
         assert!(token::balance_of(bank_addr, token_id) == 0, 1);

@@ -157,6 +157,10 @@ module MentaLabs::reward_vault {
         vector::push_back(rxs, addr);
         tx.num_receivers = vector::length(rxs);
 
+        if (!coin::is_account_registered<CoinType>(addr)) {
+            coin::register<CoinType>(account);
+        };
+
         let now_ts = timestamp::now_seconds();
         move_to(account, RewardReceiver<CoinType> {
             modifier,
@@ -224,10 +228,6 @@ module MentaLabs::reward_vault {
             error::invalid_state(EINSUFFICIENT_REWARDS)
         );
 
-        if (!coin::is_account_registered<CoinType>(signer::address_of(account))) {
-            coin::register<CoinType>(account);
-        };
-
         coin::transfer<CoinType>(&tx_sig, addr, reward);
 
         tx.available = tx.available - reward;
@@ -271,6 +271,7 @@ module MentaLabs::reward_vault {
 
     // get modifier value
     public(friend) fun get_modifier<CoinType>(account: address): u64 acquires RewardReceiver {
+        assert!(exists<RewardReceiver<CoinType>>(account), error::not_found(ERESOURCE_DNE));
         let recv = borrow_global<RewardReceiver<CoinType>>(account);
         let Modifier { kind: _, value } = option::borrow_with_default(&recv.modifier, &Modifier { value: 0, kind: MODIFIER_MUL });
         *value
@@ -324,6 +325,7 @@ module MentaLabs::reward_vault {
 
     #[test(account = @0x111, user1 = @0x112, core_framework = @aptos_framework)]
     public entry fun test_subscribe(account: signer, user1: signer, core_framework: signer) acquires RewardVault, RewardTransmitter {
+        account::create_account_for_test(signer::address_of(&user1));
         let addr = signer::address_of(&account);
         setup(&account, &core_framework);
         subscribe<coin::FakeMoney>(&user1, addr);
