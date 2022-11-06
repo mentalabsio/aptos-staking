@@ -153,7 +153,7 @@ module MentaLabs::reward_vault {
                 last_update_ts: now_ts,
                 modifier,
             });
-            move_to(account, RewardReceiver<CoinType> { vaults, });
+            move_to(account, RewardReceiver<CoinType> { vaults });
         } else {
             let recv = borrow_global_mut<RewardReceiver<CoinType>>(addr);
             assert!(
