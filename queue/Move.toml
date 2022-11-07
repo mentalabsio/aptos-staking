@@ -1,0 +1,14 @@
+[package]
+name = 'Queue'
+version = '1.0.0'
+
+[dependencies.AptosFramework]
+git = 'https://github.com/aptos-labs/aptos-core.git'
+rev = 'main'
+subdir = 'aptos-move/framework/aptos-framework'
+
+[addresses]
+MentaLabs = "_"
+
+[dev-addresses]
+MentaLabs = "0xCAFEBABE"
