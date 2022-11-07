@@ -8,6 +8,8 @@ module MentaLabs::reward_vault {
     use aptos_framework::coin;
     use aptos_framework::timestamp;
 
+    use MentaLabs::queue::{Self, Queue};
+
     friend MentaLabs::farm;
 
     /// Modifier kind variants.
@@ -37,7 +39,7 @@ module MentaLabs::reward_vault {
         vaults: Table<address, Vault>,
     }
 
-    struct Debt has store, drop {
+    struct Debt has store, copy, drop {
         recv: address,
         amount: u64,
     }
@@ -47,7 +49,7 @@ module MentaLabs::reward_vault {
         available: u64,
         reward_rate: u64,
         num_receivers: u64,
-        debt_queue: vector<Debt>,
+        debt_queue: Queue<Debt>,
         sign_capability: account::SignerCapability,
     }
 
@@ -91,7 +93,7 @@ module MentaLabs::reward_vault {
             available: 0,
             num_receivers: 0,
             reward_rate,
-            debt_queue: vector::empty(),
+            debt_queue: queue::new(),
             sign_capability,
         });
 
@@ -118,7 +120,7 @@ module MentaLabs::reward_vault {
 
         let tx_signature = account::create_signer_with_capability(&tx.sign_capability);
 
-        if (!vector::is_empty(&tx.debt_queue)) {
+        if (!queue::is_empty(&tx.debt_queue)) {
             // Pay accrued debts.
             pay_debts<CoinType>(&tx_signature);
         }
@@ -129,23 +131,24 @@ module MentaLabs::reward_vault {
         let transmitter = borrow_global_mut<RewardTransmitter<CoinType>>(addr);
         let debt_queue = &mut transmitter.debt_queue;
 
-        let i = 0;
-        while (i < vector::length(debt_queue)) {
-            let debt = vector::borrow_mut(debt_queue, i);
+        let first = queue::pop_front(debt_queue);
+        while (option::is_some(&first)) {
+            let debt = option::extract(&mut first);
             let available = transmitter.available;
 
             if (debt.amount <= available) {
                 coin::transfer<CoinType>(tx, debt.recv, debt.amount);
                 transmitter.available = transmitter.available - debt.amount;
-                vector::remove(debt_queue, i);
             } else {
                 let amount = debt.amount - available;
                 coin::transfer<CoinType>(tx, debt.recv, amount);
                 debt.amount = debt.amount - amount;
+                queue::push_back(debt_queue, debt);
                 transmitter.available = 0;
                 break
             };
-            i = i + 1;
+
+            first = queue::pop_front(debt_queue);
         };
     }
 
@@ -271,8 +274,6 @@ module MentaLabs::reward_vault {
         let tx = borrow_global_mut<RewardTransmitter<CoinType>>(reward_vault.tx);
         let reward = vault_ref.accrued_rewards;
 
-        assert!(reward <= tx.available, error::invalid_state(EINSUFFICIENT_REWARDS));
-
         let tx_sig =
             account::create_signer_with_capability(&tx.sign_capability);
 
@@ -284,7 +285,7 @@ module MentaLabs::reward_vault {
         // Add user to debt queue if there is not enough reward available
         if (reward > tx.available) {
             let debt_amount = reward - tx.available;
-            vector::push_back(&mut tx.debt_queue, Debt { recv: addr, amount: debt_amount });
+            queue::push_back(&mut tx.debt_queue, Debt { recv: addr, amount: debt_amount });
             reward = tx.available;
        };
 
@@ -588,6 +589,47 @@ module MentaLabs::reward_vault {
         let expected = (reward_rate * 3) * 86400;
         let balance2 = coin::balance<coin::FakeMoney>(user1_addr);
         assert!(balance2 == expected + balance, 0);
+    }
+
+    #[test(account = @0x111, user1 = @0x112, core_framework = @aptos_framework)]
+    public entry fun test_debt(
+        account: signer,
+        user1: signer,
+        core_framework: signer
+    ) acquires RewardVault, RewardReceiver, RewardTransmitter {
+        let addr = signer::address_of(&account);
+        let user1_addr = signer::address_of(&user1);
+
+        account::create_account_for_test(user1_addr);
+        setup(&account, &core_framework);
+        subscribe_with_modifier<coin::FakeMoney>(
+            &user1,
+            addr,
+            create_mul_modifier(2)
+        );
+
+        // there is not enough rewards for 6 days of subscription
+        timestamp::fast_forward_seconds(6 * 86400);
+
+        let tx_addr = borrow_global<RewardVault<coin::FakeMoney>>(addr).tx;
+        let available = borrow_global<RewardTransmitter<coin::FakeMoney>>(tx_addr).available;
+
+        claim<coin::FakeMoney>(&user1, addr);
+
+        // expect the transmitter to pay what it cans and crate a debt for the rest.
+        let balance = coin::balance<coin::FakeMoney>(user1_addr);
+        assert!(balance == available, 0);
+
+        // check debt queue
+        let transmitter = borrow_global<RewardTransmitter<coin::FakeMoney>>(tx_addr);
+        let debt = queue::peek(&transmitter.debt_queue);
+        let expected = (transmitter.reward_rate * 2) * (6 * 86400) - available;
+        assert!(option::is_some(&debt), 0);
+
+        let debt = option::borrow(&debt);
+        assert!(debt.recv == user1_addr, 0);
+        assert!(debt.amount == expected, 0);
+
     }
 }
 
