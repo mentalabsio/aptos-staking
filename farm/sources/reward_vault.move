@@ -37,11 +37,17 @@ module MentaLabs::reward_vault {
         vaults: Table<address, Vault>,
     }
 
+    struct Debt has store, drop {
+        recv: address,
+        amount: u64,
+    }
+
     /// Stores transmission settings in a resource account, which will also hold the reward coins.
     struct RewardTransmitter<phantom CoinType> has key {
         available: u64,
         reward_rate: u64,
         num_receivers: u64,
+        debt_queue: vector<Debt>,
         sign_capability: account::SignerCapability,
     }
 
@@ -85,6 +91,7 @@ module MentaLabs::reward_vault {
             available: 0,
             num_receivers: 0,
             reward_rate,
+            debt_queue: vector::empty(),
             sign_capability,
         });
 
@@ -104,11 +111,42 @@ module MentaLabs::reward_vault {
         assert_reward_vault_exists<CoinType>(addr);
 
         let tx_addr = borrow_global<RewardVault<CoinType>>(addr).tx;
-
         coin::transfer<CoinType>(account, tx_addr, amount);
 
         let tx = borrow_global_mut<RewardTransmitter<CoinType>>(tx_addr);
         tx.available = tx.available + amount;
+
+        let tx_signature = account::create_signer_with_capability(&tx.sign_capability);
+
+        if (!vector::is_empty(&tx.debt_queue)) {
+            // Pay accrued debts.
+            pay_debts<CoinType>(&tx_signature);
+        }
+    }
+
+    fun pay_debts<CoinType>(tx: &signer) acquires RewardTransmitter {
+        let addr = signer::address_of(tx);
+        let transmitter = borrow_global_mut<RewardTransmitter<CoinType>>(addr);
+        let debt_queue = &mut transmitter.debt_queue;
+
+        let i = 0;
+        while (i < vector::length(debt_queue)) {
+            let debt = vector::borrow_mut(debt_queue, i);
+            let available = transmitter.available;
+
+            if (debt.amount <= available) {
+                coin::transfer<CoinType>(tx, debt.recv, debt.amount);
+                transmitter.available = transmitter.available - debt.amount;
+                vector::remove(debt_queue, i);
+            } else {
+                let amount = debt.amount - available;
+                coin::transfer<CoinType>(tx, debt.recv, amount);
+                debt.amount = debt.amount - amount;
+                transmitter.available = 0;
+                break
+            };
+            i = i + 1;
+        };
     }
 
     /// Withdraw funds from reward transmitter.
@@ -243,7 +281,16 @@ module MentaLabs::reward_vault {
             error::invalid_state(EINSUFFICIENT_REWARDS)
         );
 
-        coin::transfer<CoinType>(&tx_sig, addr, reward);
+        // Add user to debt queue if there is not enough reward available
+        if (reward > tx.available) {
+            let debt_amount = reward - tx.available;
+            vector::push_back(&mut tx.debt_queue, Debt { recv: addr, amount: debt_amount });
+            reward = tx.available;
+       };
+
+        if (reward > 0) {
+            coin::transfer<CoinType>(&tx_sig, addr, reward);
+        };
 
         tx.available = tx.available - reward;
         vault_ref.accrued_rewards = 0;
