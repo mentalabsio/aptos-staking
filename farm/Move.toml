@@ -1,5 +1,5 @@
 [package]
-name = 'farm'
+name = 'Farm'
 version = '1.0.0'
 
 [dependencies.AptosFramework]
@@ -15,3 +15,5 @@ subdir = 'aptos-move/framework/aptos-token'
 [addresses]
 MentaLabs = "_"
 
+[dev-addresses]
+MentaLabs = "0xCAFEBABE"
