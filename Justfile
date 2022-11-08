@@ -16,7 +16,7 @@ test    package=invocation_directory(): (build package)
 	aptos move test --package-dir {{package}}
 
 docgen  package=invocation_directory(): (build package)
-	-move docgen -p {{package}} -t doc_template/overview.md -d -v
+	-move docgen -p {{package}} -t doc_template/README.md -d -v
 
 watch cmd="build" package=invocation_directory():
 	watchexec -ce move just {{cmd}} {{package}}
