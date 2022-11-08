@@ -73,6 +73,7 @@ module MentaLabs::farm {
     /// Add funds to the farm's reward vault.
     public entry fun fund_reward<R>(creator: &signer, amount: u64) acquires Farm {
         let farm_addr = find_farm_address(&signer::address_of(creator));
+        assert_farm_exists<R>(farm_addr);
         coin::transfer<R>(creator, farm_addr, amount);
 
         let farm = borrow_global<Farm<R>>(farm_addr);
@@ -83,6 +84,8 @@ module MentaLabs::farm {
     /// Withdraw funds from the farm's reward vault.
     public entry fun withdraw_reward<R>(creator: &signer, amount: u64) acquires Farm {
         let farm_addr = find_farm_address(&signer::address_of(creator));
+        assert_farm_exists<R>(farm_addr);
+
         let farm = borrow_global<Farm<R>>(farm_addr);
         let farm_signer = account::create_signer_with_capability(&farm.sign_cap);
         reward_vault::withdraw_funds<R>(&farm_signer, amount);
@@ -96,10 +99,7 @@ module MentaLabs::farm {
         collection_reward_rate: u64,
     ) acquires Farm {
         let farm_addr = find_farm_address(&signer::address_of(account));
-        assert!(
-            exists<Farm<R>>(farm_addr),
-            error::not_found(ERESOURCE_DNE)
-        );
+        assert_farm_exists<R>(farm_addr);
 
         let farm = borrow_global_mut<Farm<R>>(farm_addr);
 
@@ -120,10 +120,7 @@ module MentaLabs::farm {
         account: &signer,
         farm: address
     ) acquires Farm {
-        assert!(
-            exists<Farm<R>>(farm),
-            error::not_found(ERESOURCE_DNE)
-        );
+        assert_farm_exists<R>(farm);
 
         let farmer_addr = signer::address_of(account);
 
@@ -207,9 +204,8 @@ module MentaLabs::farm {
         farm: address
     ) acquires Farm, Farmer {
         let addr = signer::address_of(account);
-        assert!(exists<Farmer>(addr), error::not_found(ERESOURCE_DNE));
-        assert!(exists<Farm<R>>(farm), error::not_found(ERESOURCE_DNE));
-        assert!(is_registered<R>(&addr, farm), error::not_found(ENOT_REGISTERED));
+        assert_farmer_exists(addr);
+        assert_is_registered<R>(addr, farm);
 
         let farmer = borrow_global_mut<Farmer>(addr);
         let staked = table::borrow_mut(&mut farmer.staked, farm);
@@ -242,8 +238,8 @@ module MentaLabs::farm {
     /// Claim rewards from a farm.
     public entry fun claim_rewards<R>(account: &signer, farm: address) acquires Farm {
         let user_addr = signer::address_of(account);
-        assert!(exists<Farmer>(user_addr), error::not_found(ERESOURCE_DNE));
-        assert!(is_registered<R>(&user_addr, farm), error::invalid_state(ENOT_REGISTERED));
+        assert_farmer_exists(user_addr);
+        assert_is_registered<R>(user_addr, farm);
         reward_vault::claim<R>(account, farm);
     }
 
@@ -251,14 +247,19 @@ module MentaLabs::farm {
         account::create_resource_address(creator, b"farm")
     }
 
-    public fun get_accrued_rewards<R>(farmer: address, farm: address): u64 {
+    public fun get_accrued_rewards<R>(farmer: address, farm: address): u64 acquires Farm {
+        assert_farmer_exists(farmer);
+        assert_is_registered<R>(farmer, farm);
         reward_vault::get_accrued_rewards<R>(farmer, farm)
     }
 
     public fun get_staked<R>(
         farmer: &address,
         farm: address
-    ): vector<token::TokenId> acquires Farmer {
+    ): vector<token::TokenId> acquires Farm, Farmer {
+        assert_farmer_exists(*farmer);
+        assert_is_registered<R>(*farmer, farm);
+
         *table::borrow(&borrow_global<Farmer>(*farmer).staked, farm)
     }
 
@@ -266,6 +267,7 @@ module MentaLabs::farm {
         farmer: &address,
         farm: address
     ): bool acquires Farm {
+        assert_farm_exists<R>(farm);
         let farm = borrow_global<Farm<R>>(farm);
         vector::contains(&farm.farmer_handles, farmer)
     }
@@ -274,14 +276,27 @@ module MentaLabs::farm {
         farm: address,
         collection_name: String
     ): bool acquires Farm {
-        assert!(exists<Farm<R>>(farm), error::not_found(ERESOURCE_DNE));
+        assert_farm_exists<R>(farm);
         let whitelisted_collections =
             &borrow_global<Farm<R>>(farm).whitelisted_collections;
         table::contains(whitelisted_collections, collection_name)
     }
 
     public fun get_farmers<R>(farm: address): vector<address> acquires Farm {
+        assert_farm_exists<R>(farm);
         borrow_global<Farm<R>>(farm).farmer_handles
+    }
+
+    fun assert_farm_exists<R>(farm: address) {
+        assert!(exists<Farm<R>>(farm), error::not_found(ERESOURCE_DNE));
+    }
+
+    fun assert_farmer_exists(farmer: address) {
+        assert!(exists<Farmer>(farmer), error::not_found(ERESOURCE_DNE));
+    }
+
+    fun assert_is_registered<R>(farmer: address, farm: address) acquires Farm {
+        assert!(is_registered<R>(&farmer, farm), error::invalid_state(ENOT_REGISTERED));
     }
 
     #[test_only]
