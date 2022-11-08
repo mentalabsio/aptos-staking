@@ -9,10 +9,14 @@ default:
 	@just --list -u
 
 build   package=invocation_directory():                 (_aptos-move "compile" package "--save-metadata")
-test    package=invocation_directory(): (build package)
-	aptos move test --package-dir {{package}}
 prove   package=invocation_directory(): (build package) (_aptos-move "prove"   package)
 publish package=invocation_directory(): (build package) (_aptos-move "publish" package)
+
+test    package=invocation_directory(): (build package)
+	aptos move test --package-dir {{package}}
+
+docgen  package=invocation_directory(): (build package)
+	-move docgen -p {{package}} -t doc_template/overview.md -d -v
 
 watch cmd="build" package=invocation_directory():
 	watchexec -ce move just {{cmd}} {{package}}
