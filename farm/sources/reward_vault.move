@@ -336,8 +336,15 @@ module MentaLabs::reward_vault {
         assert!(table::contains(&recv.vaults, vault_addr), error::not_found(ERESOURCE_DNE));
 
         let vault_ref = table::borrow(&recv.vaults, vault_addr);
-        let Modifier { kind, value } = option::borrow_with_default(&vault_ref.modifier, &Modifier { value: 1, kind: MODIFIER_MUL });
-        update_modifier<CoinType>(vault, account, option::some(Modifier { kind: *kind, value: *value + lhs } ));
+        let Modifier { kind, value } = option::borrow_with_default(
+            &vault_ref.modifier,
+            &Modifier { value: 1, kind: MODIFIER_MUL }
+        );
+        update_modifier<CoinType>(
+            vault,
+            account,
+            option::some(Modifier { kind: *kind, value: *value + lhs } )
+        );
     }
 
     public(friend) fun decrease_modifier_value<CoinType>(
@@ -350,8 +357,15 @@ module MentaLabs::reward_vault {
         assert!(table::contains(&recv.vaults, vault_addr), error::not_found(ERESOURCE_DNE));
 
         let vault_ref = table::borrow(&recv.vaults, vault_addr);
-        let Modifier { kind, value } = option::borrow_with_default(&vault_ref.modifier, &Modifier { value: 1, kind: MODIFIER_MUL });
-        update_modifier<CoinType>(vault, account, option::some(Modifier { kind: *kind, value: *value - lhs } ));
+        let Modifier { kind, value } = option::borrow_with_default(
+            &vault_ref.modifier,
+            &Modifier { value: 1, kind: MODIFIER_MUL }
+        );
+        update_modifier<CoinType>(
+            vault,
+            account,
+            option::some(Modifier { kind: *kind, value: *value - lhs })
+        );
     }
 
     public(friend) fun update_modifier<CoinType>(
@@ -632,4 +646,3 @@ module MentaLabs::reward_vault {
 
     }
 }
-
