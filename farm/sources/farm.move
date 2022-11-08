@@ -46,10 +46,12 @@ module MentaLabs::farm {
     const EALREADY_STAKED: u64 = 4;
     /// NFT is not staked
     const ENOT_STAKED: u64 = 5;
+    /// User still has staking NFTs.
+    const ESTILL_STAKING: u64 = 6;
     /// User is not registered in a farm.
-    const ENOT_REGISTERED: u64 = 6;
+    const ENOT_REGISTERED: u64 = 7;
     /// User is already registered in a farm.
-    const EALREADY_REGISTERED: u64 = 7;
+    const EALREADY_REGISTERED: u64 = 8;
 
     /// Publishes a new farm under a new resource account.
     public entry fun publish_farm<R>(account: &signer) {
@@ -225,7 +227,7 @@ module MentaLabs::farm {
     }
 
     /// Claim rewards from a farm.
-    public entry fun claim_rewards<R>(account: &signer, farm: address) acquires Farm {
+    public entry fun claim_rewards<R>(account: &signer, farm: address) acquires Farm, Farmer {
         let user_addr = signer::address_of(account);
         assert_farmer_exists(user_addr);
         assert_is_registered<R>(user_addr, farm);
@@ -237,10 +239,20 @@ module MentaLabs::farm {
         };
     }
 
-    public fun unregister_farmer<R>(account: &signer, farm: address) acquires Farm {
+    public fun unregister_farmer<R>(account: &signer, farm: address) acquires Farm, Farmer {
         let addr = signer::address_of(account);
         assert_farmer_exists(addr);
         assert_is_registered<R>(addr, farm);
+
+        let farmer_ref = borrow_global_mut<Farmer>(addr);
+        assert!(table::contains(&farmer_ref.staked, farm), 1);
+
+        let staked = table::borrow(&farmer_ref.staked, farm);
+        assert!(vector::is_empty(staked), error::invalid_state(ESTILL_STAKING));
+
+        // Remove farm from farmer's staked table.
+        // let vec = table::remove(&mut farmer_ref.staked, farm);
+        // vector::destroy_empty(vec);
 
         let farm_ref = borrow_global_mut<Farm<R>>(farm);
         let (exist, index) = vector::index_of(&farm_ref.farmer_handles, &addr);
