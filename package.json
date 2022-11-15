@@ -1,0 +1,23 @@
+{
+  "name": "aptos-staking",
+  "version": "1.0.0",
+  "description": "## prerequisites",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mentalabsio/aptos-staking.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mentalabsio/aptos-staking/issues"
+  },
+  "homepage": "https://github.com/mentalabsio/aptos-staking#readme",
+  "devDependencies": {
+    "@types/node": "^18.11.9",
+    "aptos": "^1.3.17"
+  }
+}
