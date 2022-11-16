@@ -29,25 +29,20 @@ const getResourceAccountAddress = (
 }
 
 /** Address which published the farm module. */
-const modulePublisherAddress =
-  "0xb31a6b65ef781be729ea190e78f3050cb74d5db752ab729f603f594e1a3f7b63"
+const modulePublisherAddress = ""
 
-/** Account to sign for the farm on-chain resource. */
-const farmOwnerAccount = new AptosAccount(
-  new HexString(
-    "0x951199b8d721130dac46809cc5ae177eede6eb4850478b80829985b90c57576d"
-  ).toUint8Array()
-)
+/** Account that will own the farm on-chain resources. */
+const farmOwnerAccount = new AptosAccount(new HexString("").toUint8Array())
 console.log("farmOwnerAccount", farmOwnerAccount.address().toString())
 
 /** Module for the coin used in staking */
 const coinTypeAddress =
-  "0xfeda4efea5e23ed95c461f92f7103f2032c6a06f9792b0eb91d8ac38ddd4bcd9::moon_coin::MoonCoin"
+  "0x92613d7ccde977d947e68d9858a0e2f4bbddc04e9dfa36473597ecb95f9aab1a::moon_coin::MoonCoin"
 
 const farmAddress = getResourceAccountAddress(
   farmOwnerAccount.address(),
   Buffer.from("farm")
-)
+).hex()
 
 /**
  * Runs farm commands against the published module
@@ -95,9 +90,49 @@ const farmAddress = getResourceAccountAddress(
     console.log(result)
   }
 
+  const stake = async () => {
+    const collectionName = "Alice's"
+    const tokenName = "Alice's first token"
+    const tokenPropertyVersion = 0
+
+    const payload = {
+      type: "entry_function_payload",
+      function: `${modulePublisherAddress}::farm::stake`,
+      type_arguments: [`${coinTypeAddress}`],
+      /**
+       * Arguments:
+       *
+       * creator_address: address,
+       * collection_name: String,
+       * token_name: String,
+       * property_version: u64,
+       * farm: address
+       */
+      arguments: [
+        farmOwnerAccount.address().toString(),
+        collectionName,
+        tokenName,
+        tokenPropertyVersion,
+        farmAddress,
+      ],
+    }
+
+    const rawTx = await client.generateTransaction(
+      farmOwnerAccount.address(),
+      payload
+    )
+
+    const signedTX = await client.signTransaction(farmOwnerAccount, rawTx)
+    const tx = await client.submitTransaction(signedTX)
+    const result = await client.waitForTransactionWithResult(tx.hash)
+
+    console.log(result)
+  }
+
   try {
     // await createFarm()
     // await addToWhitelist()
+    await stake()
   } catch (e) {
     console.log(e)
   }
