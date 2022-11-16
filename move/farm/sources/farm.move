@@ -151,9 +151,14 @@ module MentaLabs::farm {
     /// Stake an NFT in a farm.
     public entry fun stake<R>(
         account: &signer,
-        token_id: token::TokenId,
+        creator_address: address,
+        collection_name: String,
+        token_name: String,
+        property_version: u64,
         farm: address
     ) acquires Farm, Farmer {
+        let token_id = token::create_token_id_raw(creator_address, collection_name, token_name, property_version);
+        
         let (_, collection, _, _) = token::get_token_id_fields(&token_id);
         assert!(is_whitelisted<R>(farm, collection), 1);
 
@@ -411,9 +416,12 @@ module MentaLabs::farm {
 
         // Create a new NFT.
         let collection_name = string::utf8(b"Hello, World");
+        let token_name = string::utf8(b"Token #1");
+        
         create_collection(creator);
+        
         let token_id =
-            create_token(creator, collection_name, string::utf8(b"Token #1"));
+            create_token(creator, collection_name, token_name);
         token::direct_transfer(creator, user, token_id, 1);
 
         // Publish a new farm under creator account.
@@ -446,7 +454,17 @@ module MentaLabs::farm {
         let token_id = setup(creator, user, core_framework);
         let farm_addr = find_farm_address(&creator_addr);
 
-        stake<FakeMoney>(user, token_id, farm_addr);
+        let (_, collection_name, token_name, property_version) = token::get_token_id_fields(&token_id);
+
+        stake<FakeMoney>(
+            user,
+            creator_addr,
+            collection_name,
+            token_name,
+            property_version,
+            farm_addr
+        );
+
         assert!(token::balance_of(user_addr, token_id) == 0, 1);
 
         timestamp::fast_forward_seconds(500);
@@ -457,7 +475,15 @@ module MentaLabs::farm {
         claim_rewards<FakeMoney>(user, farm_addr);
         assert!(coin::balance<FakeMoney>(user_addr) == 500 , 1);
 
-        stake<FakeMoney>(user, token_id, farm_addr);
+        stake<FakeMoney>(
+            user,
+            creator_addr,
+            collection_name,
+            token_name,
+            property_version,
+            farm_addr
+        );
+
         assert!(token::balance_of(user_addr, token_id) == 0, 1);
 
         timestamp::fast_forward_seconds(500);
@@ -479,11 +505,20 @@ module MentaLabs::farm {
         use std::string;
 
         let token_id = setup(&creator, &user, &core_framework);
+        let (_, collection_name, token_name, property_version) = token::get_token_id_fields(&token_id);
+
         let creator_addr = signer::address_of(&creator);
         let user_addr = signer::address_of(&user);
         let farm_addr = find_farm_address(&creator_addr);
 
-        stake<FakeMoney>(&user, token_id, farm_addr);
+        stake<FakeMoney>(
+            &user,
+            creator_addr,
+            collection_name,
+            token_name,
+            property_version,
+            farm_addr
+        );
 
         bank::assert_bank_exists(&user_addr);
 
@@ -496,14 +531,26 @@ module MentaLabs::farm {
 
         {
             // Stake another token
+            let collection_name = string::utf8(b"Hello, World");
+            let token_name = string::utf8(b"Token #2");
+            let property_version = 0;
+
             let token_id = create_token(
                 &creator,
-                string::utf8(b"Hello, World"),
-                string::utf8(b"Token #2")
+                collection_name,
+                token_name
             );
+
             token::direct_transfer(&creator, &user, token_id, 1);
 
-            stake<FakeMoney>(&user, token_id, farm_addr);
+            stake<FakeMoney>(
+                &user,
+                creator_addr,
+                collection_name,
+                token_name,
+                property_version,
+                farm_addr
+            );
 
             let staked = get_staked<FakeMoney>(&user_addr, farm_addr);
             assert!(reward_vault::get_modifier<FakeMoney>(user_addr, farm_addr) == 2, 1);
