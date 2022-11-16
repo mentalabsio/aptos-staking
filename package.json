@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/mentalabsio/aptos-staking#readme",
   "devDependencies": {
+    "@noble/hashes": "^1.1.3",
     "@types/node": "^18.11.9",
     "aptos": "^1.3.17"
   }
