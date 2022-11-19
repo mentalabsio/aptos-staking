@@ -4,45 +4,40 @@ import { Button, Flex, Heading, Input } from "theme-ui"
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs"
 import { CollectionList } from "@/components/CollectionList"
 import { useState } from "react"
-import { Nft } from "@/components/CollectionItem"
+import CollectionItem, { Nft } from "@/components/CollectionItem"
+import { useWallet } from "@manahippo/aptos-wallet-adapter"
+import { useTokens } from "@/hooks/useTokens"
 
 export default function Home() {
   const [selectedWalletItems, setSelectedWalletItems] = useState<Nft[]>([])
   const [selectedVaultItems, setSelectedVaultItems] = useState<Nft[]>([])
+  const { account } = useWallet()
 
-  const walletNFTs = []
+  const { tokens } = useTokens(account)
 
   /**
    * Handles selected items.
    */
   const handleWalletItemClick = (item: Nft) => {
     setSelectedWalletItems((prev) => {
-      const exists = prev.find(
-        (NFT) => NFT.onchainMetadata.mint === item.onchainMetadata.mint
-      )
+      const exists = prev.find((NFT) => NFT.name === item.name)
 
       /** Remove if exists */
       if (exists) {
-        return prev.filter(
-          (NFT) => NFT.onchainMetadata.mint !== item.onchainMetadata.mint
-        )
+        return prev.filter((NFT) => NFT.name !== item.name)
       }
 
       return prev.length < 4 ? prev?.concat(item) : prev
     })
   }
 
-  const handleVaultItemClick = (item: NFT) => {
+  const handleVaultItemClick = (item: Nft) => {
     setSelectedVaultItems((prev) => {
-      const exists = prev.find(
-        (NFT) => NFT.onchainMetadata.mint === item.onchainMetadata.mint
-      )
+      const exists = prev.find((NFT) => NFT.name === item.name)
 
       /** Remove if exists */
       if (exists) {
-        return prev.filter(
-          (NFT) => NFT.onchainMetadata.mint !== item.onchainMetadata.mint
-        )
+        return prev.filter((NFT) => NFT.name !== item.name)
       }
 
       return prev.length < 4 ? prev?.concat(item) : prev
@@ -122,12 +117,11 @@ export default function Home() {
                 </Button>
               </Flex>
 
-              <CollectionList NFTs={walletNFTs}>
+              <CollectionList NFTs={tokens}>
                 <>
-                  {walletNFTs?.map((item) => {
+                  {tokens?.map((item) => {
                     const isSelected = selectedWalletItems.find(
-                      (NFT) =>
-                        NFT.onchainMetadata.mint === item.onchainMetadata.mint
+                      (NFT) => NFT.name === item.name
                     )
 
                     return (
@@ -139,7 +133,7 @@ export default function Home() {
                         }}
                       >
                         <CollectionItem
-                          key={item.onchainMetadata.mint}
+                          key={item.name}
                           item={item}
                           onClick={handleWalletItemClick}
                           sx={{
@@ -170,13 +164,13 @@ export default function Home() {
               >
                 <Heading variant="heading2">Your vault NFTs</Heading>
                 <Button
-                  onClick={async (e) => {
-                    const allMints = selectedVaultItems.map((item) => item.mint)
-                    await unstakeAll(allMints)
-                    await fetchNFTs()
-                    await fetchReceipts()
-                    setSelectedVaultItems([])
-                  }}
+                  // onClick={async (e) => {
+                  //   const allMints = selectedVaultItems.map((item) => item.mint)
+                  //   await unstakeAll(allMints)
+                  //   await fetchNFTs()
+                  //   await fetchReceipts()
+                  //   setSelectedVaultItems([])
+                  // }}
                   disabled={!selectedVaultItems.length}
                 >
                   Unstake selected
@@ -193,12 +187,10 @@ export default function Home() {
                   },
                 }}
               >
-                {orderedReceipts &&
-                  orderedReceipts.map((stake) => {
+                {tokens &&
+                  tokens.map((item) => {
                     const isSelected = selectedVaultItems.find(
-                      (NFT) =>
-                        NFT.onchainMetadata.mint ===
-                        stake.metadata.onchainMetadata.mint
+                      (NFT) => NFT.name === item.name
                     )
 
                     return (
@@ -220,7 +212,7 @@ export default function Home() {
                             },
                           }}
                           // onClick={handleVaultItemClick}
-                          // item={stake.metadata}
+                          item={item}
                         />
                         {/* <Flex
                                 sx={{

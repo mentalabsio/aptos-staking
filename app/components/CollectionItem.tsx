@@ -4,12 +4,11 @@ import { Button, Flex, Text } from "theme-ui"
 
 import { DotsIcon } from "./icons"
 import useOutsideClick from "@/hooks/useOutsideClick"
+import { Token } from "@/hooks/useTokens"
 // import { Nft } from "@metaplex-foundation/js"
 
-export type Nft = {
-  uri: any
-  json: any
-}
+export type Nft = Token
+
 type Props = {
   item: Nft
   additionalOptions?: React.ReactElement
@@ -29,7 +28,7 @@ const CollectionItem = (props: Props) => {
 
   if (!item) return null
 
-  const { uri, json } = item
+  const { uri } = item
 
   const handleOnClick = (item: Nft) => () => onClick ? onClick(item) : true
   const handleKeyDown =
@@ -125,7 +124,7 @@ const CollectionItem = (props: Props) => {
           View raw JSON
         </a>
         <a
-          href={json.image}
+          href={item.uri}
           rel="noopener noreferrer"
           target="_blank"
           tabIndex={1}
@@ -140,7 +139,7 @@ const CollectionItem = (props: Props) => {
           transition: "all .125s linear",
           opacity: isDropdownActive ? 0.7 : 1,
         }}
-        src={json.image}
+        src={item.uri}
       />
       <Text
         variant="small"
@@ -152,7 +151,7 @@ const CollectionItem = (props: Props) => {
           mt: ".8rem",
         }}
       >
-        {json.name}
+        {item.name}
         {/* <br />
     <a
       href={`https://solscan.io/token/${onchainMetadata.metaData.mint}`}
