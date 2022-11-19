@@ -10,7 +10,13 @@ export function WalletManager() {
   return (
     <>
       {account?.address ? (
-        <Button onClick={disconnect}>
+        <Button
+          sx={{
+            alignItems: "center",
+            gap: ".8rem",
+          }}
+          onClick={disconnect}
+        >
           {
             <img
               sx={{
@@ -20,6 +26,9 @@ export function WalletManager() {
               src={wallet.adapter.icon}
             />
           }
+          {account?.address.toString().slice(0, 6) +
+            "..." +
+            account?.address.toString().slice(-4)}
         </Button>
       ) : (
         <Button onClick={() => setIsModalOpen(true)}>Select wallet</Button>
@@ -30,10 +39,10 @@ export function WalletManager() {
           sx={{
             position: "fixed",
             margin: "0 auto",
-            backgroundColor: "background2",
+            backgroundColor: "background",
             left: 0,
             right: 0,
-            top: "16rem",
+            top: "8rem",
             zIndex: 999,
             maxWidth: "48rem",
             padding: "3.2rem",
@@ -85,6 +94,7 @@ export function WalletManager() {
       <div
         onClick={() => setIsModalOpen(false)}
         sx={{
+          position: "fixed",
           "::before": {
             content: "''",
             position: "fixed",
@@ -96,6 +106,7 @@ export function WalletManager() {
             bottom: 0,
             left: 0,
             right: 0,
+            transition: "all .125s linear",
           },
         }}
       ></div>
