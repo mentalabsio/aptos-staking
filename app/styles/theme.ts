@@ -1,6 +1,7 @@
 import { Theme } from "theme-ui"
 
 import base from "./preset-base"
+import { reactTabsStyles } from "./react-tabs"
 
 export const getGradient = (rgb: string) => {
   /**
@@ -260,6 +261,8 @@ const theme: Theme = {
       ul: {
         paddingInlineStart: 0,
       },
+
+      ...reactTabsStyles,
     },
 
     spinnerSmall: {
