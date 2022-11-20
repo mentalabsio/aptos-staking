@@ -8,15 +8,19 @@
 
 ## develop locally
 
-- Run `aptos node run-local-testnet --with-faucet`
+- Run `aptos node run-local-testnet --with-faucet` to start a local node
 - Create a coin: https://aptos.dev/tutorials/your-first-coin/
 - Create an NFT: https://aptos.dev/tutorials/your-first-nft/
 
-- Publish the packages:
+- Publish the Move modules:
 
   - Move to `move/` folder
   - Run `just publish queue`
   - Run `just publish farm`
+
+- Setup/manage the farm:
+
+  - Run `ts-node scripts/farm-manager.ts`
 
 - Move to `app/` and run `yarn`
 - Run `yarn dev` to work locally
