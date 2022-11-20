@@ -13,7 +13,7 @@ export default function Home() {
   const [selectedWalletItems, setSelectedWalletItems] = useState<Nft[]>([])
   const [selectedVaultItems, setSelectedVaultItems] = useState<Nft[]>([])
   const { account } = useWallet()
-  const { stake, bankTokens } = useStaking()
+  const { stake, unstake, bankTokens } = useStaking()
 
   const { tokens } = useTokens(account?.address?.toString() || "")
 
@@ -116,7 +116,7 @@ export default function Home() {
                     // await stakeAll(allMints)
                     // await fetchNFTs()
                     // await fetchReceipts()
-                    // setSelectedWalletItems([])
+                    setSelectedWalletItems([])
                   }}
                   // disabled={!selectedWalletItems.length}
                 >
@@ -171,13 +171,13 @@ export default function Home() {
               >
                 <Heading variant="heading2">Your vault NFTs</Heading>
                 <Button
-                  // onClick={async (e) => {
-                  //   const allMints = selectedVaultItems.map((item) => item.mint)
-                  //   await unstakeAll(allMints)
-                  //   await fetchNFTs()
-                  //   await fetchReceipts()
-                  //   setSelectedVaultItems([])
-                  // }}
+                  onClick={async (e) => {
+                    const collectionName = selectedVaultItems[0].collection
+                    const tokenName = selectedVaultItems[0].name
+
+                    await unstake({ collectionName, tokenName })
+                    setSelectedVaultItems([])
+                  }}
                   disabled={!selectedVaultItems.length}
                 >
                   Unstake selected
@@ -218,7 +218,7 @@ export default function Home() {
                                 : "transparent",
                             },
                           }}
-                          // onClick={handleVaultItemClick}
+                          onClick={handleVaultItemClick}
                           item={item}
                         />
                         {/* <Flex

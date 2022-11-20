@@ -28,7 +28,7 @@ function WalletProvider(props: Props) {
   return (
     <WalletProviderBase
       wallets={wallets}
-      autoConnect={false} /** allow auto wallet connection or not **/
+      autoConnect={true} /** allow auto wallet connection or not **/
       onError={(error) => {
         console.log("Handle Error Message", error)
       }}

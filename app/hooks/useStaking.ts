@@ -105,5 +105,49 @@ export const useStaking = () => {
     console.log("vm_status", result.vm_status)
   }
 
-  return { stake, bankTokens }
+  const unstake = async ({
+    collectionName,
+    tokenName,
+  }: {
+    collectionName: string
+    tokenName: string
+  }) => {
+    const tokenPropertyVersion = 0
+
+    const payload = {
+      type: "entry_function_payload",
+      function: `${modulePublisherAddress}::farm::unstake`,
+      type_arguments: [`${coinTypeAddress}`],
+      /**
+       * Arguments:
+       *
+       * creator_address: address,
+       * collection_name: String,
+       * token_name: String,
+       * property_version: u64,
+       * farm: address
+       */
+      arguments: [
+        farmOwnerAccount.address().toString(),
+        collectionName,
+        tokenName,
+        tokenPropertyVersion,
+        farmAddress,
+      ],
+    }
+
+    const rawTx = await client.generateTransaction(
+      farmOwnerAccount.address(),
+      payload
+    )
+
+    const signedTX = await client.signTransaction(farmOwnerAccount, rawTx)
+    const tx = await client.submitTransaction(signedTX)
+    const result = (await client.waitForTransactionWithResult(tx.hash)) as any
+
+    console.log("success", result.success)
+    console.log("vm_status", result.vm_status)
+  }
+
+  return { stake, unstake, bankTokens }
 }
