@@ -10,7 +10,9 @@ const farmOwnerAccount = new AptosAccount(new HexString("").toUint8Array())
  * Runs farm commands against the published module
  */
 ;(async () => {
-  const client = new AptosClient("http://0.0.0.0:8080")
+  const client = new AptosClient(
+    "https://aptos-mainnet.nodereal.io/v1/5f41e22184804070bc3ea2b77f0809d9/v1"
+  )
 
   const createFarm = async () => {
     const payload = {
@@ -29,6 +31,7 @@ const farmOwnerAccount = new AptosAccount(new HexString("").toUint8Array())
     const tx = await client.submitTransaction(signedTX)
     const result = (await client.waitForTransactionWithResult(tx.hash)) as any
 
+    console.log(result)
     console.log("success", result.success)
     console.log("vm_status", result.vm_status)
   }
@@ -38,7 +41,13 @@ const farmOwnerAccount = new AptosAccount(new HexString("").toUint8Array())
       type: "entry_function_payload",
       function: `${modulePublisherAddress}::farm::add_to_whitelist`,
       type_arguments: [`${coinTypeAddress}`],
-      arguments: ["Alice's", 1],
+      /**
+       * arguments:
+       *
+       * collection name
+       * reward per second
+       */
+      arguments: ["The Bored Aptos Yacht Club", 1],
     }
 
     const rawTx = await client.generateTransaction(
@@ -77,9 +86,9 @@ const farmOwnerAccount = new AptosAccount(new HexString("").toUint8Array())
   }
 
   try {
-    // await createFarm()
+    await createFarm()
     // await addToWhitelist()
-    await fundReward()
+    // await fundReward()
   } catch (e) {
     console.log(e)
   }

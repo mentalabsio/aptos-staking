@@ -33,10 +33,10 @@ export const getResourceAccountAddress = (
 
 /** Address which published the farm module, and also the coin module. Also this account should own the farm. */
 export const modulePublisherAddress =
-  "0x52582b2b41e43a956e632d2f6f8ed98d15a580ea207ca488af4b118c91156d93"
+  "0x69c1b21fc28610043a57412568fd28d4199c0f57f90b1af8f687ec7fcc4ddd46"
 
 /** Module for the coin used in staking */
-export const coinTypeAddress = `${modulePublisherAddress}::moon_coin::MoonCoin`
+export const coinTypeAddress = `${modulePublisherAddress}::apetos_coin::ApetosCoin`
 
 export const farmAddress = getResourceAccountAddress(
   modulePublisherAddress,
@@ -55,7 +55,9 @@ type RewardAccountResource = {
 }
 
 export const useStaking = () => {
-  const client = new AptosClient("http://0.0.0.0:8080")
+  const client = new AptosClient(
+    "https://aptos-mainnet.nodereal.io/v1/5f41e22184804070bc3ea2b77f0809d9/v1"
+  )
   const { account, signAndSubmitTransaction } = useWallet()
   const [rewardVaultData, setRewardVaultData] =
     useState<RewardVaultData | null>(null)
