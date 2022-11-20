@@ -207,12 +207,17 @@ module MentaLabs::farm {
     /// Unstake an NFT from a farm.
     public entry fun unstake<R>(
         account: &signer,
-        token_id: token::TokenId,
+        creator_address: address,
+        collection_name: String,
+        token_name: String,
+        property_version: u64,
         farm: address
     ) acquires Farm, Farmer {
         let addr = signer::address_of(account);
         assert_farmer_exists(addr);
         assert_is_registered<R>(addr, farm);
+
+        let token_id = token::create_token_id_raw(creator_address, collection_name, token_name, property_version);
 
         let farmer = borrow_global_mut<Farmer>(addr);
         let staked = table::borrow_mut(&mut farmer.staked, farm);
@@ -469,7 +474,14 @@ module MentaLabs::farm {
 
         timestamp::fast_forward_seconds(500);
 
-        unstake<FakeMoney>(user, token_id, farm_addr);
+        unstake<FakeMoney>(user,
+            creator_addr,
+            collection_name,
+            token_name,
+            property_version,
+            farm_addr
+        );
+
         assert!(token::balance_of(user_addr, token_id) == 1, 1);
 
         claim_rewards<FakeMoney>(user, farm_addr);
@@ -488,7 +500,15 @@ module MentaLabs::farm {
 
         timestamp::fast_forward_seconds(500);
 
-        unstake<FakeMoney>(user, token_id, farm_addr);
+        unstake<FakeMoney>(
+            user,
+            creator_addr,
+            collection_name,
+            token_name,
+            property_version,
+            farm_addr
+        );
+
         assert!(token::balance_of(user_addr, token_id) == 1, 1);
 
         claim_rewards<FakeMoney>(user, farm_addr);
@@ -559,7 +579,15 @@ module MentaLabs::farm {
 
             timestamp::fast_forward_seconds(250);
 
-            unstake<FakeMoney>(&user, token_id, farm_addr);
+            unstake<FakeMoney>(
+                &user,
+                creator_addr,
+                collection_name,
+                token_name,
+                property_version,
+                farm_addr
+            );
+
             let staked = get_staked<FakeMoney>(&user_addr, farm_addr);
             assert!(vector::length(&staked) == 1, 1);
             assert!(token::balance_of(bank_addr, token_id) == 0, 1);
@@ -572,7 +600,15 @@ module MentaLabs::farm {
 
         timestamp::fast_forward_seconds(500);
 
-        unstake<FakeMoney>(&user, token_id, farm_addr);
+        unstake<FakeMoney>(
+            &user,
+            creator_addr,
+            collection_name,
+            token_name,
+            property_version,
+            farm_addr
+        );
+
         assert!(token::balance_of(bank_addr, token_id) == 0, 1);
         assert!(token::balance_of(user_addr, token_id) == 1, 1);
 
