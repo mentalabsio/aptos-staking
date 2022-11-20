@@ -13,9 +13,9 @@ export default function Home() {
   const [selectedWalletItems, setSelectedWalletItems] = useState<Nft[]>([])
   const [selectedVaultItems, setSelectedVaultItems] = useState<Nft[]>([])
   const { account } = useWallet()
-  const { stake } = useStaking()
+  const { stake, bankTokens } = useStaking()
 
-  const { tokens } = useTokens(account)
+  const { tokens } = useTokens(account?.address?.toString() || "")
 
   /**
    * Handles selected items.
@@ -194,8 +194,8 @@ export default function Home() {
                   },
                 }}
               >
-                {tokens &&
-                  tokens.map((item) => {
+                {bankTokens &&
+                  bankTokens.map((item) => {
                     const isSelected = selectedVaultItems.find(
                       (NFT) => NFT.name === item.name
                     )

@@ -43,20 +43,22 @@ export const getTokens = async (address: string) => {
   )
 }
 
-export function useTokens(account: AccountKeys | null): {
+export function useTokens(address: string | null): {
   tokens: Token[]
   loading: boolean
 } {
   const [tokens, setTokens] = useState<Token[]>([])
   const [loading, setLoading] = useState(true)
+
   useEffect(() => {
-    if (account?.address) {
+    if (address) {
       ;(async () => {
-        const tokens = await getTokens(account.address.toString())
+        const tokens = await getTokens(address)
         setLoading(false)
         setTokens(tokens)
       })()
     }
-  }, [account])
+  }, [address])
+
   return { tokens, loading }
 }

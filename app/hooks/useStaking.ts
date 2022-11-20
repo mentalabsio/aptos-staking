@@ -7,6 +7,8 @@ import {
   TxnBuilderTypes,
 } from "aptos"
 import { sha3_256 } from "@noble/hashes/sha3"
+import { useWallet } from "@manahippo/aptos-wallet-adapter"
+import { useTokens } from "./useTokens"
 
 export const getResourceAccountAddress = (
   sourceAddress: MaybeHexString,
@@ -48,6 +50,16 @@ export const farmAddress = getResourceAccountAddress(
 
 export const useStaking = () => {
   const client = new AptosClient("http://0.0.0.0:8080")
+  const { account } = useWallet()
+
+  const bankAddress = account?.address?.toString()
+    ? getResourceAccountAddress(
+        account?.address?.toString(),
+        Buffer.from("bank")
+      )
+    : ""
+
+  const { tokens: bankTokens } = useTokens(bankAddress.toString())
 
   const stake = async ({
     collectionName,
@@ -93,5 +105,5 @@ export const useStaking = () => {
     console.log("vm_status", result.vm_status)
   }
 
-  return { stake }
+  return { stake, bankTokens }
 }
