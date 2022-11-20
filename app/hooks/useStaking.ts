@@ -71,20 +71,42 @@ export const useStaking = () => {
 
   useEffect(() => {
     ;(async () => {
-      const rewardVaultAddress = getResourceAccountAddress(
+      const rewardTransmitterAddress = getResourceAccountAddress(
         farmAddress,
         Buffer.from("transmitter")
       )
 
+      console.log(rewardTransmitterAddress.toString())
+
       // @ts-ignore
       const { data } = (await client.getAccountResource(
-        rewardVaultAddress,
+        rewardTransmitterAddress,
         `${modulePublisherAddress}::reward_vault::RewardTransmitter<${coinTypeAddress}>`
       )) as RewardAccountResource
 
       setRewardVaultData(data)
     })()
   }, [])
+
+  useEffect(() => {
+    ;(async () => {
+      if (account?.address) {
+        // @ts-ignore
+        const rewardReceiverResources = await client.getAccountResource(
+          account?.address.toString(),
+          `${modulePublisherAddress}::reward_vault::RewardReceiver<${coinTypeAddress}>`
+        )
+
+        const {
+          data: {
+            // @ts-ignore
+            vaults: { handle: vault },
+          },
+        } = rewardReceiverResources
+        console.log(rewardReceiverResources)
+      }
+    })()
+  }, [account])
 
   const stake = async ({
     collectionName,
