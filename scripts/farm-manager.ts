@@ -54,9 +54,32 @@ const farmOwnerAccount = new AptosAccount(new HexString("").toUint8Array())
     console.log("vm_status", result.vm_status)
   }
 
+  const fundReward = async () => {
+    const payload = {
+      type: "entry_function_payload",
+      function: `${modulePublisherAddress}::farm::fund_reward`,
+      type_arguments: [`${coinTypeAddress}`],
+      // arg: amount
+      arguments: [10e6],
+    }
+
+    const rawTx = await client.generateTransaction(
+      farmOwnerAccount.address(),
+      payload
+    )
+
+    const signedTX = await client.signTransaction(farmOwnerAccount, rawTx)
+    const tx = await client.submitTransaction(signedTX)
+    const result = (await client.waitForTransactionWithResult(tx.hash)) as any
+
+    console.log("success", result.success)
+    console.log("vm_status", result.vm_status)
+  }
+
   try {
     // await createFarm()
-    await addToWhitelist()
+    // await addToWhitelist()
+    await fundReward()
   } catch (e) {
     console.log(e)
   }

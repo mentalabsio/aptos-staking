@@ -13,7 +13,7 @@ export default function Home() {
   const [selectedWalletItems, setSelectedWalletItems] = useState<Nft[]>([])
   const [selectedVaultItems, setSelectedVaultItems] = useState<Nft[]>([])
   const { account } = useWallet()
-  const { stake, unstake, bankTokens } = useStaking()
+  const { claim, stake, unstake, bankTokens, rewardVaultData } = useStaking()
 
   const { tokens } = useTokens(account?.address?.toString() || "")
 
@@ -81,6 +81,18 @@ export default function Home() {
             alignSelf: "stretch",
           }}
         >
+          <Button
+            sx={{
+              alignSelf: "center",
+            }}
+            onClick={async () => {
+              await claim()
+            }}
+          >
+            Claim
+          </Button>
+          {rewardVaultData?.available} <br />
+          {rewardVaultData?.reward_rate}
           <Tabs
             sx={{
               margin: "3.2rem 0",
@@ -133,6 +145,7 @@ export default function Home() {
 
                     return (
                       <Flex
+                        key={item.name}
                         sx={{
                           flexDirection: "column",
                           alignItems: "center",
@@ -140,7 +153,6 @@ export default function Home() {
                         }}
                       >
                         <CollectionItem
-                          key={item.name}
                           item={item}
                           onClick={handleWalletItemClick}
                           sx={{
@@ -202,6 +214,7 @@ export default function Home() {
 
                     return (
                       <Flex
+                        key={item.name}
                         sx={{
                           flexDirection: "column",
                           alignItems: "center",

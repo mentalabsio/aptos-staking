@@ -9,6 +9,7 @@ import {
 import { sha3_256 } from "@noble/hashes/sha3"
 import { useWallet } from "@manahippo/aptos-wallet-adapter"
 import { useTokens } from "./useTokens"
+import { useEffect, useState } from "react"
 
 export const getResourceAccountAddress = (
   sourceAddress: MaybeHexString,
@@ -42,9 +43,22 @@ export const farmAddress = getResourceAccountAddress(
   Buffer.from("farm")
 ).hex()
 
+type RewardVaultData = {
+  available: string
+  debt_queue: { inner: Array<unknown> }
+  num_receivers: string
+  reward_rate: string
+}
+
+type RewardAccountResource = {
+  data: RewardVaultData
+}
+
 export const useStaking = () => {
   const client = new AptosClient("http://0.0.0.0:8080")
   const { account, signAndSubmitTransaction } = useWallet()
+  const [rewardVaultData, setRewardVaultData] =
+    useState<RewardVaultData | null>(null)
 
   const bankAddress = account?.address?.toString()
     ? getResourceAccountAddress(
@@ -54,6 +68,23 @@ export const useStaking = () => {
     : ""
 
   const { tokens: bankTokens } = useTokens(bankAddress.toString())
+
+  useEffect(() => {
+    ;(async () => {
+      const rewardVaultAddress = getResourceAccountAddress(
+        farmAddress,
+        Buffer.from("transmitter")
+      )
+
+      // @ts-ignore
+      const { data } = (await client.getAccountResource(
+        rewardVaultAddress,
+        `${modulePublisherAddress}::reward_vault::RewardTransmitter<${coinTypeAddress}>`
+      )) as RewardAccountResource
+
+      setRewardVaultData(data)
+    })()
+  }, [])
 
   const stake = async ({
     collectionName,
@@ -131,5 +162,25 @@ export const useStaking = () => {
     console.log("vm_status", result.vm_status)
   }
 
-  return { stake, unstake, bankTokens }
+  const claim = async () => {
+    const payload = {
+      type: "entry_function_payload",
+      function: `${modulePublisherAddress}::farm::claim_rewards`,
+      type_arguments: [`${coinTypeAddress}`],
+      /**
+       * Arguments:
+       *
+       * farm: address
+       */
+      arguments: [farmAddress],
+    }
+
+    const tx = await signAndSubmitTransaction(payload)
+    const result = (await client.waitForTransactionWithResult(tx.hash)) as any
+
+    console.log("success", result.success)
+    console.log("vm_status", result.vm_status)
+  }
+
+  return { claim, stake, unstake, bankTokens, rewardVaultData }
 }
