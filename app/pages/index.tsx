@@ -7,11 +7,13 @@ import { useState } from "react"
 import CollectionItem, { Nft } from "@/components/CollectionItem"
 import { useWallet } from "@manahippo/aptos-wallet-adapter"
 import { useTokens } from "@/hooks/useTokens"
+import { useStaking } from "@/hooks/useStaking"
 
 export default function Home() {
   const [selectedWalletItems, setSelectedWalletItems] = useState<Nft[]>([])
   const [selectedVaultItems, setSelectedVaultItems] = useState<Nft[]>([])
   const { account } = useWallet()
+  const { stake } = useStaking()
 
   const { tokens } = useTokens(account)
 
@@ -103,6 +105,11 @@ export default function Home() {
                 <Heading variant="heading2">Your wallet NFTs</Heading>
                 <Button
                   onClick={async (e) => {
+                    console.log(selectedWalletItems)
+                    const collectionName = selectedWalletItems[0].collection
+                    const tokenName = selectedWalletItems[0].name
+
+                    await stake({ collectionName, tokenName })
                     // const allMints = selectedWalletItems.map(
                     //   (item) => item.mint
                     // )

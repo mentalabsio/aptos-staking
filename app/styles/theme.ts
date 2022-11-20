@@ -59,7 +59,7 @@ const theme: Theme = {
   buttons: {
     primary: {
       display: "flex",
-      color: "heading",
+      color: "background",
       background: (theme) => theme.colors?.primaryGradient,
       border: "1px solid transparent",
       transition: "all .125s linear",
