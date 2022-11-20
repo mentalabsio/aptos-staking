@@ -30,27 +30,21 @@ export const getResourceAccountAddress = (
   return HexString.fromUint8Array(hash.digest())
 }
 
-/** Account that will own the farm on-chain resources. */
-export const farmOwnerAccount = new AptosAccount(
-  new HexString("").toUint8Array()
-)
-
-/** Address which published the farm module, and also the coin module. */
-export const modulePublisherAddress = farmOwnerAccount.address().toString()
-
-console.log("farmOwnerAccount", farmOwnerAccount.address().toString())
+/** Address which published the farm module, and also the coin module. Also this account should own the farm. */
+export const modulePublisherAddress =
+  "0x52582b2b41e43a956e632d2f6f8ed98d15a580ea207ca488af4b118c91156d93"
 
 /** Module for the coin used in staking */
 export const coinTypeAddress = `${modulePublisherAddress}::moon_coin::MoonCoin`
 
 export const farmAddress = getResourceAccountAddress(
-  farmOwnerAccount.address(),
+  modulePublisherAddress,
   Buffer.from("farm")
 ).hex()
 
 export const useStaking = () => {
   const client = new AptosClient("http://0.0.0.0:8080")
-  const { account } = useWallet()
+  const { account, signAndSubmitTransaction } = useWallet()
 
   const bankAddress = account?.address?.toString()
     ? getResourceAccountAddress(
@@ -84,7 +78,7 @@ export const useStaking = () => {
        * farm: address
        */
       arguments: [
-        farmOwnerAccount.address().toString(),
+        modulePublisherAddress,
         collectionName,
         tokenName,
         tokenPropertyVersion,
@@ -92,13 +86,7 @@ export const useStaking = () => {
       ],
     }
 
-    const rawTx = await client.generateTransaction(
-      farmOwnerAccount.address(),
-      payload
-    )
-
-    const signedTX = await client.signTransaction(farmOwnerAccount, rawTx)
-    const tx = await client.submitTransaction(signedTX)
+    const tx = await signAndSubmitTransaction(payload)
     const result = (await client.waitForTransactionWithResult(tx.hash)) as any
 
     console.log("success", result.success)
@@ -128,7 +116,7 @@ export const useStaking = () => {
        * farm: address
        */
       arguments: [
-        farmOwnerAccount.address().toString(),
+        modulePublisherAddress,
         collectionName,
         tokenName,
         tokenPropertyVersion,
@@ -136,13 +124,7 @@ export const useStaking = () => {
       ],
     }
 
-    const rawTx = await client.generateTransaction(
-      farmOwnerAccount.address(),
-      payload
-    )
-
-    const signedTX = await client.signTransaction(farmOwnerAccount, rawTx)
-    const tx = await client.submitTransaction(signedTX)
+    const tx = await signAndSubmitTransaction(payload)
     const result = (await client.waitForTransactionWithResult(tx.hash)) as any
 
     console.log("success", result.success)

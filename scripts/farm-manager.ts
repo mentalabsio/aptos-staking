@@ -1,10 +1,10 @@
-import { AptosClient } from "aptos"
+import { AptosAccount, AptosClient, HexString } from "aptos"
 import {
   coinTypeAddress,
-  farmAddress,
-  farmOwnerAccount,
   modulePublisherAddress,
 } from "../app/hooks/useStaking"
+
+const farmOwnerAccount = new AptosAccount(new HexString("").toUint8Array())
 
 /**
  * Runs farm commands against the published module
