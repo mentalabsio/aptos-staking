@@ -91,8 +91,8 @@ export default function Home() {
           >
             Claim
           </Button>
-          {rewardVaultData?.available} <br />
-          {rewardVaultData?.reward_rate}
+          {/* {rewardVaultData?.available} <br />
+          {rewardVaultData?.reward_rate} */}
           <Tabs
             sx={{
               margin: "3.2rem 0",
