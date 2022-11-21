@@ -43,6 +43,9 @@ export const farmAddress = getResourceAccountAddress(
   Buffer.from("farm")
 ).hex()
 
+const creatorAddress =
+  "0x97d8291b05b5438b0976b93554074f933608a491d63dcb2cfec368d6777631ef"
+
 type RewardVaultData = {
   available: string
   debt_queue: { inner: Array<unknown> }
@@ -94,18 +97,17 @@ export const useStaking = () => {
     ;(async () => {
       if (account?.address) {
         // @ts-ignore
-        const rewardReceiverResources = await client.getAccountResource(
-          account?.address.toString(),
-          `${modulePublisherAddress}::reward_vault::RewardReceiver<${coinTypeAddress}>`
-        )
-
-        const {
-          data: {
-            // @ts-ignore
-            vaults: { handle: vault },
-          },
-        } = rewardReceiverResources
-        console.log(rewardReceiverResources)
+        // const rewardReceiverResources = await client.getAccountResource(
+        //   account?.address.toString(),
+        //   `${modulePublisherAddress}::reward_vault::RewardReceiver<${coinTypeAddress}>`
+        // )
+        // const {
+        //   data: {
+        //     // @ts-ignore
+        //     vaults: { handle: vault },
+        //   },
+        // } = rewardReceiverResources
+        // console.log(rewardReceiverResources)
       }
     })()
   }, [account])
@@ -133,7 +135,7 @@ export const useStaking = () => {
        * farm: address
        */
       arguments: [
-        modulePublisherAddress,
+        creatorAddress,
         collectionName,
         tokenName,
         tokenPropertyVersion,
@@ -171,7 +173,7 @@ export const useStaking = () => {
        * farm: address
        */
       arguments: [
-        modulePublisherAddress,
+        creatorAddress,
         collectionName,
         tokenName,
         tokenPropertyVersion,

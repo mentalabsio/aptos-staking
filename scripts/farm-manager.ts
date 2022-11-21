@@ -47,7 +47,7 @@ const farmOwnerAccount = new AptosAccount(new HexString("").toUint8Array())
        * collection name
        * reward per second
        */
-      arguments: ["The Bored Aptos Yacht Club", 1],
+      arguments: ["The Bored Aptos Yacht Club", 0.000231e6],
     }
 
     const rawTx = await client.generateTransaction(
@@ -86,8 +86,8 @@ const farmOwnerAccount = new AptosAccount(new HexString("").toUint8Array())
   }
 
   try {
-    await createFarm()
-    // await addToWhitelist()
+    // await createFarm()
+    await addToWhitelist()
     // await fundReward()
   } catch (e) {
     console.log(e)
