@@ -15,7 +15,7 @@ export const getGradient = (rgb: string) => {
 
 /**
  * rgb(84, 42, 147)
- * rgb(145, 255, 200)
+ * rgb(245, 0, 0)
  *
  */
 
@@ -23,23 +23,12 @@ const theme: Theme = {
   ...base,
   colors: {
     background: "rgb(24, 19, 19)",
-    text: "rgb(226, 217, 211)",
-    primary: "rgb(145, 255, 200)",
-    primaryGradient: getGradient("rgb(145, 255, 200)"),
-    heading: "rgb(226, 217, 211)",
+    text: "#f4f4f4",
+    primary: "rgb(245, 0, 0)",
+    primaryGradient: getGradient("rgb(245, 0, 0)"),
+    heading: "#fff",
     background2: "#1E1E24",
     backgroundGradient: getGradient("rgb(24, 19, 19)"),
-    modes: {
-      light: {
-        background: "rgb(226, 217, 211)",
-        text: "rgb(24, 19, 19)",
-        primary: "rgb(145, 255, 200)",
-        primaryGradient: getGradient("rgb(145, 255, 200)"),
-        heading: "#1E1E24",
-        background2: "#1E1E24",
-        backgroundGradient: getGradient("rgb(226, 217, 211)"),
-      },
-    },
     error: "#B00020",
     success: "#5cb85c",
   },
@@ -53,23 +42,23 @@ const theme: Theme = {
 
   fonts: {
     heading:
-      'AvertaStd-Bold, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
+      'NotoSans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
   },
 
   buttons: {
     primary: {
       display: "flex",
-      color: "background",
-      background: (theme) => theme.colors?.primaryGradient,
+      color: "#fff",
+      background: (theme) => theme.colors?.primary,
       border: "1px solid transparent",
       transition: "all .125s linear",
       alignItems: "center",
       borderColor: "primary",
       opacity: 1,
       fontWeight: 500,
+      borderRadius: "4px",
 
       "&:not(:disabled):hover": {
-        bg: "background",
         borderColor: "primary",
         cursor: "pointer",
         opacity: 0.7,
@@ -82,17 +71,16 @@ const theme: Theme = {
     },
     secondary: {
       display: "flex",
-      color: "heading",
-      background: (theme) => theme.colors?.backgroundGradient,
+      color: "#fff",
+      background: (theme) => "#000",
       border: "1px solid transparent",
       transition: "all .125s linear",
       alignItems: "center",
-      borderColor: "heading",
       opacity: 1,
       fontWeight: 500,
+      borderRadius: "4px",
 
       "&:not(:disabled):hover": {
-        bg: "background",
         cursor: "pointer",
         opacity: 0.7,
       },
@@ -109,7 +97,7 @@ const theme: Theme = {
       color: "heading",
       transform: "perspective(1px) translateZ(0)",
       position: "relative",
-      background: "linear-gradient(45deg, rgb(145, 255, 200), grey)",
+      background: "linear-gradient(45deg, rgb(245, 0, 0), grey)",
       borderRadius: ".4rem",
       boxShadow: "0 0 5px 2px #00000054",
       fontSize: "1.6rem",
@@ -120,7 +108,7 @@ const theme: Theme = {
       transition: "all .125s linear",
 
       "&:not(:disabled):hover": {
-        background: "linear-gradient(225deg, rgb(145, 255, 200), grey)",
+        background: "linear-gradient(225deg, rgb(245, 0, 0), grey)",
         cursor: "pointer",
       },
 
@@ -159,9 +147,9 @@ const theme: Theme = {
     heading: {
       color: "heading",
       lineHeight: "body",
-      fontSize: "2.2rem",
+      fontSize: "3.2rem",
       fontFamily:
-        'AvertaStd-Bold, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
+        'NotoSans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
       fontWeight: 900,
     },
     headingSpecial: {
@@ -169,13 +157,13 @@ const theme: Theme = {
       lineHeight: "body",
       fontSize: "2.2rem",
       fontFamily:
-        'AvertaStd-Bold, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
+        'NotoSans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
       fontWeight: 900,
     },
     heading2: {
       color: "heading",
       lineHeight: "body",
-      fontSize: "1.9rem",
+      fontSize: "2.2rem",
       fontFamily: "heading",
       fontWeight: 600,
     },
@@ -218,9 +206,9 @@ const theme: Theme = {
 
       body: {
         /** Default text styles */
-        fontSize: "1.4rem",
+        fontSize: "1.5rem",
         fontFamily:
-          'AvertaStd-Regular, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
+          'FiraSans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
         lineHeight: 1.45,
         minHeight: "100vh",
         color: "text",
@@ -260,6 +248,11 @@ const theme: Theme = {
       },
       ul: {
         paddingInlineStart: 0,
+      },
+
+      "@keyframes slide": {
+        "0%": { transform: "translateX(-100%)" },
+        "100%": { transform: "translateX(100%)" },
       },
 
       ...reactTabsStyles,

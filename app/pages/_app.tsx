@@ -20,9 +20,10 @@ function App(props: AppProps) {
   return (
     <ThemeProvider theme={defaultTheme}>
       <Head>
-        <title>Aptos App</title>
+        <title>ApeStake</title>
         {/** Load font styles directly on the document to prevent flashes */}
         <link href="/fonts/fonts.css" rel="stylesheet" />
+        <link rel="icon" type="image/png" href="/boredaptos.png" />
       </Head>
 
       <WalletProvider>

@@ -79,9 +79,12 @@ export default function Home() {
             alignSelf: "stretch",
           }}
         >
-          <Heading mb=".8rem" variant="heading1">
-            Aptos Staking
-          </Heading>
+          <img
+            sx={{
+              maxWidth: "8rem",
+            }}
+            src="/boredaptos.png"
+          />
           <WalletManager />
         </Flex>
 
@@ -144,7 +147,7 @@ export default function Home() {
                       console.log(e)
                     }
                   }}
-                  // disabled={!selectedWalletItems.length}
+                  disabled={!selectedWalletItems.length}
                 >
                   Stake selected
                 </Button>
@@ -270,6 +273,33 @@ export default function Home() {
               </Flex>
             </TabPanel>
           </Tabs>
+        </Flex>
+        <Flex
+          sx={{
+            gap: "3.2rem",
+            margin: "3.2rem 0 1.6rem 0",
+
+            fontSize: "2rem",
+
+            a: {
+              color: "#7B7B7B",
+            },
+          }}
+        >
+          <a
+            href="https://boredaptos.medium.com/the-bored-aptos-story-79aaf355c9ab"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            What is $APETOS?
+          </a>
+          <a
+            href="https://www.topaz.so/collection/The-Bored-Aptos-Yacht-Club-97d8291b05"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Topaz Market
+          </a>
         </Flex>
       </main>
     </>

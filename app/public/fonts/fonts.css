@@ -1,10 +1,15 @@
 @font-face {
-  font-family: "AvertaStd-Regular";
-  src: url("/fonts/AvertaStdRegular/font.woff2") format("woff2"),
-    url("/fonts/AvertaStdRegular/font.woff") format("woff");
+  font-family: "NotoSans";
+  src: url("/fonts/NotoSans-Bold.ttf") format("truetype")
 }
+
 @font-face {
-  font-family: "AvertaStd-Bold";
-  src: url("/fonts/AvertaStdBold/font.woff2") format("woff2"),
-    url("/fonts/AvertaStdBold/font.woff") format("woff");
+  font-family: "FiraSans";
+  src: url("/fonts/FiraSans-Regular.ttf") format("truetype")
 }
+
+@font-face {
+  font-family: "FiraMono";
+  src: url("/fonts/FiraMono-Regular.ttf") format("truetype")
+}
+
