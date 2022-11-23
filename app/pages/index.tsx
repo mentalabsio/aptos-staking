@@ -15,7 +15,11 @@ export default function Home() {
   const { account } = useWallet()
   const { claim, stake, unstake, bankTokens, rewardVaultData } = useStaking()
 
-  const { tokens } = useTokens(account?.address?.toString() || "")
+  const { tokens } = useTokens(
+    account?.address?.toString() || "",
+    null,
+    "Bored Aptos Yacht Club"
+  )
 
   /**
    * Handles selected items.
