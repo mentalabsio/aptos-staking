@@ -10,6 +10,7 @@ import { sha3_256 } from "@noble/hashes/sha3"
 import { useWallet } from "@manahippo/aptos-wallet-adapter"
 import { useTokens } from "./useTokens"
 import { useEffect, useState } from "react"
+import { toast } from "react-hot-toast"
 
 export const getResourceAccountAddress = (
   sourceAddress: MaybeHexString,
@@ -146,11 +147,22 @@ export const useStaking = () => {
       ],
     }
 
-    const tx = await signAndSubmitTransaction(payload)
-    const result = (await client.waitForTransactionWithResult(tx.hash)) as any
+    const toastId = toast.loading("Sending transaction...")
 
-    console.log("success", result.success)
-    console.log("vm_status", result.vm_status)
+    try {
+      const tx = await signAndSubmitTransaction(payload)
+      const result = (await client.waitForTransactionWithResult(tx.hash)) as any
+
+      toast.success("Success!", {
+        id: toastId,
+      })
+      console.log("success", result.success)
+      console.log("vm_status", result.vm_status)
+    } catch (e) {
+      toast.error("Something went wrong. " + e, {
+        id: toastId,
+      })
+    }
   }
 
   const unstake = async ({
@@ -184,11 +196,22 @@ export const useStaking = () => {
       ],
     }
 
-    const tx = await signAndSubmitTransaction(payload)
-    const result = (await client.waitForTransactionWithResult(tx.hash)) as any
+    const toastId = toast.loading("Sending transaction...")
 
-    console.log("success", result.success)
-    console.log("vm_status", result.vm_status)
+    try {
+      const tx = await signAndSubmitTransaction(payload)
+      const result = (await client.waitForTransactionWithResult(tx.hash)) as any
+
+      toast.success("Success!", {
+        id: toastId,
+      })
+      console.log("success", result.success)
+      console.log("vm_status", result.vm_status)
+    } catch (e) {
+      toast.error("Something went wrong. " + e, {
+        id: toastId,
+      })
+    }
   }
 
   const claim = async () => {
@@ -204,11 +227,22 @@ export const useStaking = () => {
       arguments: [farmAddress],
     }
 
-    const tx = await signAndSubmitTransaction(payload)
-    const result = (await client.waitForTransactionWithResult(tx.hash)) as any
+    const toastId = toast.loading("Sending transaction...")
 
-    console.log("success", result.success)
-    console.log("vm_status", result.vm_status)
+    try {
+      const tx = await signAndSubmitTransaction(payload)
+      const result = (await client.waitForTransactionWithResult(tx.hash)) as any
+
+      toast.success("Success!", {
+        id: toastId,
+      })
+      console.log("success", result.success)
+      console.log("vm_status", result.vm_status)
+    } catch (e) {
+      toast.error("Something went wrong. " + e, {
+        id: toastId,
+      })
+    }
   }
 
   return { claim, stake, unstake, bankTokens, rewardVaultData, fetchBankTokens }

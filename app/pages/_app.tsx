@@ -2,6 +2,7 @@ import React from "react"
 import Head from "next/head"
 import { ThemeProvider } from "theme-ui"
 import Router, { AppProps } from "next/dist/shared/lib/router/router"
+import { Toaster } from "react-hot-toast"
 
 // @ts-ignore
 import withGA from "next-ga"
@@ -25,6 +26,7 @@ function App(props: AppProps) {
       </Head>
 
       <WalletProvider>
+        <Toaster />
         <Component {...pageProps} />
       </WalletProvider>
     </ThemeProvider>

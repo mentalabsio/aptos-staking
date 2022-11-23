@@ -68,6 +68,7 @@ export default function Home() {
           maxWidth: "64rem",
           margin: "0 auto",
           marginTop: "4rem",
+          padding: "0 1.6rem",
         }}
       >
         <Flex
