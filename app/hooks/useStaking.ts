@@ -58,7 +58,7 @@ type RewardAccountResource = {
 }
 
 const client = new AptosClient(
-  "https://aptos-mainnet.blockeden.xyz/z8Baiu7pRiP96rdk2iQC"
+  "https://aptos-mainnet.nodereal.io/v1/5f41e22184804070bc3ea2b77f0809d9/v1"
 )
 
 export const useStaking = () => {
@@ -71,9 +71,9 @@ export const useStaking = () => {
         account?.address?.toString(),
         Buffer.from("bank")
       )
-    : ""
+    : null
 
-  const { tokens: bankTokens } = useTokens(bankAddress.toString())
+  const { tokens: bankTokens } = useTokens(bankAddress?.toString())
 
   useEffect(() => {
     ;(async () => {

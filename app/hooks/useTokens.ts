@@ -7,7 +7,7 @@ import { WalletClient } from "@martiandao/aptos-web3-bip44.js"
 // export const APTOS_FAUCET_URL = "https://faucet.devnet.aptoslabs.com/v1/"
 
 export const APTOS_NODE_URL =
-  "https://aptos-mainnet.blockeden.xyz/z8Baiu7pRiP96rdk2iQC"
+  "https://aptos-mainnet.nodereal.io/v1/5f41e22184804070bc3ea2b77f0809d9/v1"
 export const APTOS_FAUCET_URL = "http://0.0.0.0:8081"
 
 export const walletClient = new WalletClient(APTOS_NODE_URL, APTOS_FAUCET_URL)
@@ -81,7 +81,7 @@ export const getTokens = async (
 }
 
 export function useTokens(
-  address: string | null,
+  address: string,
   /** Filter by creator */
   creator?: string,
   /** Filter by collection */
@@ -91,16 +91,16 @@ export function useTokens(
   const [loading, setLoading] = useState(true)
 
   const fetchTokens = useCallback(async () => {
+    if (!address) return null
+
     const tokens = await getTokens(address, creator, collection)
     setLoading(false)
     setTokens(tokens)
-  }, [])
+  }, [address])
 
   useEffect(() => {
     if (address) {
-      ;(async () => {
-        fetchTokens()
-      })()
+      fetchTokens()
     }
   }, [address])
 

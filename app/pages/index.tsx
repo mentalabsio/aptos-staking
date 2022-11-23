@@ -16,7 +16,7 @@ export default function Home() {
   const { claim, stake, unstake, bankTokens, rewardVaultData } = useStaking()
 
   const { tokens, fetchTokens } = useTokens(
-    account?.address?.toString() || "",
+    account?.address?.toString(),
     null,
     "The Bored Aptos Yacht Club"
   )
