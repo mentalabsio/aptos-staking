@@ -40,7 +40,7 @@ export default function Home() {
         return prev.filter((NFT) => NFT.name !== item.name)
       }
 
-      return prev.length < 4 ? prev?.concat(item) : prev
+      return prev.length < 1 ? prev?.concat(item) : prev
     })
   }
 
@@ -53,7 +53,7 @@ export default function Home() {
         return prev.filter((NFT) => NFT.name !== item.name)
       }
 
-      return prev.length < 4 ? prev?.concat(item) : prev
+      return prev.length < 1 ? prev?.concat(item) : prev
     })
   }
 
