@@ -73,7 +73,9 @@ export const useStaking = () => {
       )
     : null
 
-  const { tokens: bankTokens } = useTokens(bankAddress?.toString())
+  const { tokens: bankTokens, fetchTokens: fetchBankTokens } = useTokens(
+    bankAddress?.toString()
+  )
 
   useEffect(() => {
     ;(async () => {
@@ -209,5 +211,5 @@ export const useStaking = () => {
     console.log("vm_status", result.vm_status)
   }
 
-  return { claim, stake, unstake, bankTokens, rewardVaultData }
+  return { claim, stake, unstake, bankTokens, rewardVaultData, fetchBankTokens }
 }

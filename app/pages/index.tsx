@@ -13,7 +13,14 @@ export default function Home() {
   const [selectedWalletItems, setSelectedWalletItems] = useState<Nft[]>([])
   const [selectedVaultItems, setSelectedVaultItems] = useState<Nft[]>([])
   const { account } = useWallet()
-  const { claim, stake, unstake, bankTokens, rewardVaultData } = useStaking()
+  const {
+    claim,
+    stake,
+    unstake,
+    bankTokens,
+    rewardVaultData,
+    fetchBankTokens,
+  } = useStaking()
 
   const { tokens, fetchTokens } = useTokens(
     account?.address?.toString(),
@@ -125,15 +132,16 @@ export default function Home() {
                     const collectionName = selectedWalletItems[0].collection
                     const tokenName = selectedWalletItems[0].name
 
-                    await stake({ collectionName, tokenName })
-                    // const allMints = selectedWalletItems.map(
-                    //   (item) => item.mint
-                    // )
-                    // await stakeAll(allMints)
-                    // await fetchNFTs()
-                    // await fetchReceipts()
-                    await fetchTokens()
-                    setSelectedWalletItems([])
+                    try {
+                      await stake({ collectionName, tokenName })
+
+                      await fetchTokens()
+                      await fetchBankTokens()
+
+                      setSelectedWalletItems([])
+                    } catch (e) {
+                      console.log(e)
+                    }
                   }}
                   // disabled={!selectedWalletItems.length}
                 >
@@ -192,8 +200,14 @@ export default function Home() {
                     const collectionName = selectedVaultItems[0].collection
                     const tokenName = selectedVaultItems[0].name
 
-                    await unstake({ collectionName, tokenName })
-                    setSelectedVaultItems([])
+                    try {
+                      await unstake({ collectionName, tokenName })
+                      await fetchBankTokens()
+                      await fetchTokens()
+                      setSelectedVaultItems([])
+                    } catch (e) {
+                      console.log(e)
+                    }
                   }}
                   disabled={!selectedVaultItems.length}
                 >
