@@ -93,16 +93,18 @@ export default function Home() {
             alignSelf: "stretch",
           }}
         >
-          <Button
-            sx={{
-              alignSelf: "center",
-            }}
-            onClick={async () => {
-              await claim()
-            }}
-          >
-            Claim
-          </Button>
+          {account?.address ? (
+            <Button
+              sx={{
+                alignSelf: "center",
+              }}
+              onClick={async () => {
+                await claim()
+              }}
+            >
+              Claim
+            </Button>
+          ) : null}
           {/* {rewardVaultData?.available} <br />
           {rewardVaultData?.reward_rate} */}
           <Tabs
