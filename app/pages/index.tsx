@@ -15,10 +15,10 @@ export default function Home() {
   const { account } = useWallet()
   const { claim, stake, unstake, bankTokens, rewardVaultData } = useStaking()
 
-  const { tokens } = useTokens(
+  const { tokens, fetchTokens } = useTokens(
     account?.address?.toString() || "",
     null,
-    "Bored Aptos Yacht Club"
+    "The Bored Aptos Yacht Club"
   )
 
   /**
@@ -132,6 +132,7 @@ export default function Home() {
                     // await stakeAll(allMints)
                     // await fetchNFTs()
                     // await fetchReceipts()
+                    await fetchTokens()
                     setSelectedWalletItems([])
                   }}
                   // disabled={!selectedWalletItems.length}

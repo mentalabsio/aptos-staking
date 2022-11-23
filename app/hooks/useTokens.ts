@@ -1,5 +1,5 @@
 import { AccountKeys } from "@manahippo/aptos-wallet-adapter"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { WalletClient } from "@martiandao/aptos-web3-bip44.js"
 
 // export const APTOS_NODE_URL =
@@ -7,7 +7,7 @@ import { WalletClient } from "@martiandao/aptos-web3-bip44.js"
 // export const APTOS_FAUCET_URL = "https://faucet.devnet.aptoslabs.com/v1/"
 
 export const APTOS_NODE_URL =
-  "https://aptos-mainnet.nodereal.io/v1/5f41e22184804070bc3ea2b77f0809d9/v1"
+  "https://aptos-mainnet.blockeden.xyz/z8Baiu7pRiP96rdk2iQC"
 export const APTOS_FAUCET_URL = "http://0.0.0.0:8081"
 
 export const walletClient = new WalletClient(APTOS_NODE_URL, APTOS_FAUCET_URL)
@@ -86,22 +86,23 @@ export function useTokens(
   creator?: string,
   /** Filter by collection */
   collection?: string
-): {
-  tokens: Token[]
-  loading: boolean
-} {
+) {
   const [tokens, setTokens] = useState<Token[]>([])
   const [loading, setLoading] = useState(true)
+
+  const fetchTokens = useCallback(async () => {
+    const tokens = await getTokens(address, creator, collection)
+    setLoading(false)
+    setTokens(tokens)
+  }, [])
 
   useEffect(() => {
     if (address) {
       ;(async () => {
-        const tokens = await getTokens(address, creator, collection)
-        setLoading(false)
-        setTokens(tokens)
+        fetchTokens()
       })()
     }
   }, [address])
 
-  return { tokens, loading }
+  return { tokens, loading, fetchTokens }
 }

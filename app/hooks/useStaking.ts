@@ -57,10 +57,11 @@ type RewardAccountResource = {
   data: RewardVaultData
 }
 
+const client = new AptosClient(
+  "https://aptos-mainnet.blockeden.xyz/z8Baiu7pRiP96rdk2iQC"
+)
+
 export const useStaking = () => {
-  const client = new AptosClient(
-    "https://aptos-mainnet.nodereal.io/v1/5f41e22184804070bc3ea2b77f0809d9/v1"
-  )
   const { account, signAndSubmitTransaction } = useWallet()
   const [rewardVaultData, setRewardVaultData] =
     useState<RewardVaultData | null>(null)
