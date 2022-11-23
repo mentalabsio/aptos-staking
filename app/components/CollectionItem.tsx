@@ -120,9 +120,6 @@ const CollectionItem = (props: Props) => {
           },
         }}
       >
-        <a href={uri} rel="noopener noreferrer" target="_blank" tabIndex={1}>
-          View raw JSON
-        </a>
         <a
           href={item.uri}
           rel="noopener noreferrer"
