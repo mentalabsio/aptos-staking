@@ -87,7 +87,7 @@ export function useTokens(
   /** Filter by collection */
   collection?: string
 ) {
-  const [tokens, setTokens] = useState<Token[]>([])
+  const [tokens, setTokens] = useState<Token[] | null>(null)
   const [loading, setLoading] = useState(true)
 
   const fetchTokens = useCallback(async () => {

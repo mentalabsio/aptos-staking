@@ -1,6 +1,6 @@
 /** @jsxImportSource theme-ui */
 import { WalletManager } from "@/components/WalletManager"
-import { Button, Flex, Heading, Input, Text } from "theme-ui"
+import { Button, Flex, Heading, Input, Spinner, Text } from "theme-ui"
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs"
 import { CollectionList } from "@/components/CollectionList"
 import { useState } from "react"
@@ -8,6 +8,7 @@ import CollectionItem, { Nft } from "@/components/CollectionItem"
 import { useWallet } from "@manahippo/aptos-wallet-adapter"
 import { useTokens } from "@/hooks/useTokens"
 import { useStaking } from "@/hooks/useStaking"
+import { LoaderIcon } from "react-hot-toast"
 
 export default function Home() {
   const [selectedWalletItems, setSelectedWalletItems] = useState<Nft[]>([])
@@ -297,46 +298,47 @@ export default function Home() {
                   Unstake selected
                 </Button>
               </Flex>
-              <Flex
-                sx={{
-                  flexDirection: "column",
-                  gap: "1.6rem",
+              {bankTokens ? (
+                bankTokens.length ? (
+                  <Flex
+                    sx={{
+                      flexDirection: "column",
+                      gap: "1.6rem",
 
-                  "@media (min-width: 768px)": {
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr 1fr 1fr",
-                  },
-                }}
-              >
-                {bankTokens &&
-                  bankTokens.map((item) => {
-                    const isSelected = selectedVaultItems.find(
-                      (NFT) => NFT.name === item.name
-                    )
+                      "@media (min-width: 768px)": {
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                      },
+                    }}
+                  >
+                    {bankTokens.map((item) => {
+                      const isSelected = selectedVaultItems.find(
+                        (NFT) => NFT.name === item.name
+                      )
 
-                    return (
-                      <Flex
-                        key={item.name}
-                        sx={{
-                          flexDirection: "column",
-                          alignItems: "center",
-                          gap: "1.6rem",
-                        }}
-                      >
-                        <CollectionItem
+                      return (
+                        <Flex
+                          key={item.name}
                           sx={{
-                            maxWidth: "16rem",
-                            "> img": {
-                              border: "3px solid transparent",
-                              borderColor: isSelected
-                                ? "primary"
-                                : "transparent",
-                            },
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: "1.6rem",
                           }}
-                          onClick={handleVaultItemClick}
-                          item={item}
-                        />
-                        {/* <Flex
+                        >
+                          <CollectionItem
+                            sx={{
+                              maxWidth: "16rem",
+                              "> img": {
+                                border: "3px solid transparent",
+                                borderColor: isSelected
+                                  ? "primary"
+                                  : "transparent",
+                              },
+                            }}
+                            onClick={handleVaultItemClick}
+                            item={item}
+                          />
+                          {/* <Flex
                                 sx={{
                                   gap: "1.6rem",
                                   alignItems: "center",
@@ -346,10 +348,36 @@ export default function Home() {
                               >
                                 <Button variant="resetted">Unstake</Button>
                               </Flex> */}
-                      </Flex>
-                    )
-                  })}
-              </Flex>
+                        </Flex>
+                      )
+                    })}
+                  </Flex>
+                ) : (
+                  <Text
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                    }}
+                  >
+                    There are no Bored Aptos in your vault.
+                  </Text>
+                )
+              ) : account ? (
+                <Flex
+                  sx={{
+                    justifyContent: "center",
+                    alignSelf: "stretch",
+                  }}
+                >
+                  <Spinner
+                    sx={{
+                      width: "4rem",
+                    }}
+                  />
+                </Flex>
+              ) : (
+                <Text>Connect your wallet first.</Text>
+              )}
             </TabPanel>
           </Tabs>
         </Flex>
