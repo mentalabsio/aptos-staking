@@ -72,7 +72,7 @@ export const useStaking = () => {
   const { account, signAndSubmitTransaction } = useWallet()
   const [rewardVaultData, setRewardVaultData] =
     useState<RewardVaultData | null>(null)
-  const [totalNftStaked, setTotalNftStaked] = useState(null)
+  const [totalNftStaked, setTotalNftStaked] = useState<number | null>(null)
 
   const bankAddress = account?.address?.toString()
     ? getResourceAccountAddress(
@@ -122,11 +122,13 @@ export const useStaking = () => {
             )
           : null
 
+        if (!bankAddress) return null
+
         const data: {
           tokenIds: TokenId[]
           maxDepositSequenceNumber: number
           maxWithdrawSequenceNumber: number
-        } = await walletClient.getTokenIds(bankAddress?.toString(), 100, 0, 0)
+        } = await walletClient.getTokenIds(bankAddress.toString(), 100, 0, 0)
 
         let tokenIds = data.tokenIds.filter(
           (tokenId) => tokenId.difference != 0
@@ -137,6 +139,7 @@ export const useStaking = () => {
 
       /** Fetch all banks, count the tokens and sum everything */
       const totalNftStaked = (await Promise.all(promises))
+        .filter((value) => value && value != null)
         .flatMap((x) => x.length)
         .reduce((prev, acc) => (prev += acc), 0)
 
