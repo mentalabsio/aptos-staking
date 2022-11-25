@@ -23,7 +23,7 @@ export interface Token {
   supply: number
 }
 
-type TokenId = {
+export type TokenId = {
   data: {
     property_version: any
     token_data_id: {
@@ -81,7 +81,7 @@ export const getTokens = async (
 }
 
 export function useTokens(
-  address: string,
+  address?: string,
   /** Filter by creator */
   creator?: string,
   /** Filter by collection */

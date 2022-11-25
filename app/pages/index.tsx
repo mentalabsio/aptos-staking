@@ -1,6 +1,6 @@
 /** @jsxImportSource theme-ui */
 import { WalletManager } from "@/components/WalletManager"
-import { Button, Flex, Heading, Input } from "theme-ui"
+import { Button, Flex, Heading, Input, Text } from "theme-ui"
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs"
 import { CollectionList } from "@/components/CollectionList"
 import { useState } from "react"
@@ -19,6 +19,7 @@ export default function Home() {
     unstake,
     bankTokens,
     rewardVaultData,
+    totalNftStaked,
     fetchBankTokens,
   } = useStaking()
 
@@ -93,6 +94,81 @@ export default function Home() {
             alignSelf: "stretch",
           }}
         >
+          <Flex
+            sx={{
+              background: "#1E1E1E",
+              padding: "3.2rem 1.6rem",
+              justifyContent: "center",
+
+              flexDirection: "column",
+              gap: "1.6rem",
+              borderRadius: ".4rem",
+
+              "@media (min-width: 768px)": {
+                flexDirection: "row",
+                gap: "4.8em",
+              },
+            }}
+          >
+            <Flex
+              sx={{
+                flexDirection: "column",
+                alignItems: "center",
+              }}
+            >
+              <Text>NFTs staked</Text>
+              <Text
+                sx={{
+                  background:
+                    "linear-gradient(90deg, #FBEF75 2.95%, #FED4D5 17.93%, #FC98E8 30%, #95D2F9 46.91%, #B2F5EB 61.41%, #7BFBAD 79.77%, #64FF67 95.71%)",
+                  backgroundClip: "text",
+                  textFillColor: "transparent",
+                  fontSize: "2.2rem",
+                }}
+              >
+                {totalNftStaked ? totalNftStaked : "..."}
+              </Text>
+            </Flex>
+            {/* <Flex
+              sx={{
+                flexDirection: "column",
+                alignItems: "center",
+              }}
+            >
+              <Text>Estimated Rewards</Text>
+              <Text
+                sx={{
+                  background:
+                    "linear-gradient(90deg, #FBEF75 2.95%, #FED4D5 17.93%, #FC98E8 30%, #95D2F9 46.91%, #B2F5EB 61.41%, #7BFBAD 79.77%, #64FF67 95.71%)",
+                  backgroundClip: "text",
+                  textFillColor: "transparent",
+                  fontSize: "2.2rem",
+                }}
+              >
+                {tokens ? tokens.length * 20 : "..."}
+                $APETOS
+              </Text>
+            </Flex> */}
+            <Flex
+              sx={{
+                flexDirection: "column",
+                alignItems: "center",
+              }}
+            >
+              <Text>Reward Rate</Text>
+              <Text
+                sx={{
+                  background:
+                    "linear-gradient(90deg, #FBEF75 2.95%, #FED4D5 17.93%, #FC98E8 30%, #95D2F9 46.91%, #B2F5EB 61.41%, #7BFBAD 79.77%, #64FF67 95.71%)",
+                  backgroundClip: "text",
+                  textFillColor: "transparent",
+                  fontSize: "2.2rem",
+                }}
+              >
+                20 $APETOS/day
+              </Text>
+            </Flex>
+          </Flex>
           {account?.address ? (
             <Button
               sx={{
@@ -105,8 +181,9 @@ export default function Home() {
               Claim
             </Button>
           ) : null}
+
           {/* {rewardVaultData?.available} <br />
-          {rewardVaultData?.reward_rate} */}
+          {} */}
           <Tabs
             sx={{
               margin: "3.2rem 0",
