@@ -41,7 +41,7 @@ export function CollectionList({ NFTs, children }: NFTCollectionProps) {
               alignSelf: "stretch",
             }}
           >
-            <Text>There are no NFTs on your wallet.</Text>
+            <Text>There are no Bored Aptos in your wallet.</Text>
           </Flex>
         )
       ) : /** No NFTs and public key, means it is loading */
@@ -52,9 +52,15 @@ export function CollectionList({ NFTs, children }: NFTCollectionProps) {
             alignSelf: "stretch",
           }}
         >
-          <Spinner variant="styles.spinnerLarge" />
+          <Spinner
+            sx={{
+              width: "4rem",
+            }}
+          />
         </Flex>
-      ) : null}
+      ) : (
+        <Text>Connect your wallet first.</Text>
+      )}
     </>
   )
 }
