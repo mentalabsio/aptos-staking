@@ -8,7 +8,7 @@ import {
 } from "aptos"
 import { sha3_256 } from "@noble/hashes/sha3"
 import { useWallet } from "@manahippo/aptos-wallet-adapter"
-import { useTokens } from "./useTokens"
+import { TokenId, useTokens, walletClient } from "./useTokens"
 import { useEffect, useState } from "react"
 import { toast } from "react-hot-toast"
 
@@ -58,6 +58,12 @@ type RewardAccountResource = {
   data: RewardVaultData
 }
 
+type RewardVaultResource = {
+  data: {
+    rxs: Array<string>
+  }
+}
+
 const client = new AptosClient(
   "https://aptos-mainnet.nodereal.io/v1/5f41e22184804070bc3ea2b77f0809d9/v1"
 )
@@ -66,6 +72,7 @@ export const useStaking = () => {
   const { account, signAndSubmitTransaction } = useWallet()
   const [rewardVaultData, setRewardVaultData] =
     useState<RewardVaultData | null>(null)
+  const [totalNftStaked, setTotalNftStaked] = useState(null)
 
   const bankAddress = account?.address?.toString()
     ? getResourceAccountAddress(
@@ -84,9 +91,6 @@ export const useStaking = () => {
         farmAddress,
         Buffer.from("transmitter")
       )
-
-      console.log(rewardTransmitterAddress.toString())
-
       // @ts-ignore
       const { data } = (await client.getAccountResource(
         rewardTransmitterAddress,
@@ -96,6 +100,49 @@ export const useStaking = () => {
       setRewardVaultData(data)
     })()
   }, [])
+
+  /** Fetch all receivers and their bank tokens */
+  useEffect(() => {
+    ;(async () => {
+      // @ts-ignore
+      const { data } = (await client.getAccountResource(
+        farmAddress,
+        `${modulePublisherAddress}::reward_vault::RewardVault<${coinTypeAddress}>`
+      )) as RewardVaultResource
+
+      /** Use "receivers" array to get their bank account */
+      const { rxs } = data
+
+      /** Fetch token balance for all bank accounts */
+      const promises = rxs.map(async (receiverAddress) => {
+        const bankAddress = receiverAddress.toString()
+          ? getResourceAccountAddress(
+              receiverAddress.toString(),
+              Buffer.from("bank")
+            )
+          : null
+
+        const data: {
+          tokenIds: TokenId[]
+          maxDepositSequenceNumber: number
+          maxWithdrawSequenceNumber: number
+        } = await walletClient.getTokenIds(bankAddress?.toString(), 100, 0, 0)
+
+        let tokenIds = data.tokenIds.filter(
+          (tokenId) => tokenId.difference != 0
+        )
+
+        return tokenIds
+      })
+
+      /** Fetch all banks, count the tokens and sum everything */
+      const totalNftStaked = (await Promise.all(promises))
+        .flatMap((x) => x.length)
+        .reduce((prev, acc) => (prev += acc), 0)
+
+      setTotalNftStaked(totalNftStaked)
+    })()
+  }, [farmAddress])
 
   useEffect(() => {
     ;(async () => {
@@ -245,5 +292,13 @@ export const useStaking = () => {
     }
   }
 
-  return { claim, stake, unstake, bankTokens, rewardVaultData, fetchBankTokens }
+  return {
+    claim,
+    stake,
+    unstake,
+    bankTokens,
+    rewardVaultData,
+    fetchBankTokens,
+    totalNftStaked,
+  }
 }
