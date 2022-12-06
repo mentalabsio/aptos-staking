@@ -64,9 +64,7 @@ type RewardVaultResource = {
   }
 }
 
-const client = new AptosClient(
-  "https://aptos-mainnet.nodereal.io/v1/5f41e22184804070bc3ea2b77f0809d9/v1"
-)
+const client = new AptosClient("https://fullnode.mainnet.aptoslabs.com/v1/")
 
 export const useStaking = () => {
   const { account, signAndSubmitTransaction } = useWallet()
