@@ -10,7 +10,9 @@ const farmOwnerAccount = new AptosAccount(new HexString("").toUint8Array())
  * Runs farm commands against the published module
  */
 ;(async () => {
-  const client = new AptosClient("https://fullnode.mainnet.aptoslabs.com/v1/")
+  const client = new AptosClient(
+    "https://aptos-mainnet.nodereal.io/v1/60e62a29a694416a960518b1441bd7e5/"
+  )
 
   const createFarm = async () => {
     const payload = {

@@ -3,10 +3,11 @@ import { useCallback, useEffect, useState } from "react"
 import { WalletClient } from "@martiandao/aptos-web3-bip44.js"
 
 // export const APTOS_NODE_URL =
-//   "https://fullnode.mainnet.aptoslabs.com/v1//"
+//   "https://aptos-mainnet.nodereal.io/v1/60e62a29a694416a960518b1441bd7e5//"
 // export const APTOS_FAUCET_URL = "https://faucet.devnet.aptoslabs.com/v1/"
 
-export const APTOS_NODE_URL = "https://fullnode.mainnet.aptoslabs.com/v1/"
+export const APTOS_NODE_URL =
+  "https://aptos-mainnet.nodereal.io/v1/60e62a29a694416a960518b1441bd7e5/"
 export const APTOS_FAUCET_URL = "http://0.0.0.0:8081"
 
 export const walletClient = new WalletClient(APTOS_NODE_URL, APTOS_FAUCET_URL)
