@@ -51,7 +51,9 @@ export const getTokens = async (
 
   let tokenIds = data.tokenIds
 
-  tokenIds = data.tokenIds.filter((tokenId) => tokenId.difference != 0)
+  if (shouldFilter) {
+    tokenIds = data.tokenIds.filter((tokenId) => tokenId.difference != 0)
+  }
 
   if (creator) {
     tokenIds = tokenIds.filter(
