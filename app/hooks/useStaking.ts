@@ -88,6 +88,15 @@ export const useStaking = () => {
     false
   )
 
+  // const addr = getResourceAccountAddress(
+  //   "0x125b55ee2e15ff3e1d4ad985cc90a241c8b6224262a243287adf501c29b378ea",
+  //   Buffer.from("bank")
+  // )
+
+  // const { tokens } = useTokens(addr.toString(), null, null, false)
+  // console.log(addr)
+  // console.log(tokens)
+
   useEffect(() => {
     ;(async () => {
       const rewardTransmitterAddress = getResourceAccountAddress(
@@ -220,7 +229,7 @@ export const useStaking = () => {
 
   const unstake = async ({
     collectionName,
-    tokenName = "#5445",
+    tokenName,
   }: {
     collectionName: string
     tokenName: string
