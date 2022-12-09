@@ -18,6 +18,7 @@ export default function Home() {
     claim,
     stake,
     unstake,
+    unstakeAll,
     bankTokens,
     rewardVaultData,
     totalNftStaked,
@@ -296,6 +297,24 @@ export default function Home() {
                   disabled={!selectedVaultItems.length}
                 >
                   Unstake selected
+                </Button>
+                <Button
+                  onClick={async (e) => {
+                    try {
+                      const mapped = bankTokens.map((item) => ({
+                        tokenName: item.name,
+                        collectionName: item.collection,
+                      }))
+                      await unstakeAll(mapped)
+                      await fetchBankTokens()
+                      await fetchTokens()
+                      setSelectedVaultItems([])
+                    } catch (e) {
+                      console.log(e)
+                    }
+                  }}
+                >
+                  Unstake All
                 </Button>
               </Flex>
               {bankTokens ? (

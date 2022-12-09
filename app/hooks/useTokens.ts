@@ -40,15 +40,18 @@ export const getTokens = async (
   /** Filter by creator */
   creator?: string,
   /** Filter by collection */
-  collection?: string
+  collection?: string,
+  shouldFilter?: boolean
 ) => {
   const data: {
     tokenIds: TokenId[]
     maxDepositSequenceNumber: number
     maxWithdrawSequenceNumber: number
-  } = await walletClient.getTokenIds(address.toString(), 100, 0, 0)
+  } = await walletClient.getTokenIds(address.toString(), 1000, 0, 0)
 
-  let tokenIds = data.tokenIds.filter((tokenId) => tokenId.difference != 0)
+  let tokenIds = data.tokenIds
+
+  tokenIds = data.tokenIds.filter((tokenId) => tokenId.difference != 0)
 
   if (creator) {
     tokenIds = tokenIds.filter(
@@ -85,7 +88,8 @@ export function useTokens(
   /** Filter by creator */
   creator?: string,
   /** Filter by collection */
-  collection?: string
+  collection?: string,
+  shouldFilter?: boolean
 ) {
   const [tokens, setTokens] = useState<Token[] | null>(null)
   const [loading, setLoading] = useState(true)
@@ -93,7 +97,7 @@ export function useTokens(
   const fetchTokens = useCallback(async () => {
     if (!address) return null
 
-    const tokens = await getTokens(address, creator, collection)
+    const tokens = await getTokens(address, creator, collection, shouldFilter)
     setLoading(false)
     setTokens(tokens)
   }, [address])

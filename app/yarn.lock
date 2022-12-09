@@ -281,10 +281,10 @@
     eventemitter3 "^4.0.7"
     js-sha3 "^0.8.0"
 
-"@martiandao/aptos-web3-bip44.js@^1.2.20":
-  version "1.2.20"
-  resolved "https://registry.yarnpkg.com/@martiandao/aptos-web3-bip44.js/-/aptos-web3-bip44.js-1.2.20.tgz#82b04cce2e34262cd5097df9bbef6635074e36ed"
-  integrity sha512-sqnqw+buf9tx5BAqwsl6Pe+BUl9WIFK7QwRYIvJRAGv6pVWcJlHh2eOp3K/2haZSqM/QC1C8BYeqw+dGt/xAuw==
+"@martiandao/aptos-web3-bip44.js@^1.2.21":
+  version "1.2.21"
+  resolved "https://registry.yarnpkg.com/@martiandao/aptos-web3-bip44.js/-/aptos-web3-bip44.js-1.2.21.tgz#358b897f5d421bc15244a5caf3e7c58667756671"
+  integrity sha512-m+bS9xMC2t7ANEBS6E5HtScm+63F5pmdkDnq+d3ncNQfVu9mOuO5D5Z5k8HM03nQH3q9yJLVTdku8TGWeUrm8g==
   dependencies:
     "@microsoft/eslint-formatter-sarif" "^2.1.7"
     "@noble/hashes" "1.1.2"
@@ -399,10 +399,15 @@
   resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-1.1.2.tgz#e9e035b9b166ca0af657a7848eb2718f0f22f183"
   integrity sha512-KYRCASVTv6aeUi1tsF8/vpyR7zpfs3FUzy2Jqm+MU+LmUKhQ0y2FpfwqkCcxSg2ua4GALJd8k2R76WxwZGbQpA==
 
-"@noble/hashes@1.1.3", "@noble/hashes@^1.1.2", "@noble/hashes@~1.1.1", "@noble/hashes@~1.1.3":
+"@noble/hashes@1.1.3", "@noble/hashes@^1.1.2", "@noble/hashes@~1.1.1":
   version "1.1.3"
   resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-1.1.3.tgz#360afc77610e0a61f3417e497dcf36862e4f8111"
   integrity sha512-CE0FCR57H2acVI5UOzIGSSIYxZ6v/HOhDR0Ro9VLyhnzLwx0o8W1mmgaqlEUx4049qJDlIBRztv5k+MM8vbO3A==
+
+"@noble/hashes@~1.1.3":
+  version "1.1.4"
+  resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-1.1.4.tgz#2611ebf5764c1bf754da7c7794de4fb30512336d"
+  integrity sha512-+PYsVPrTSqtVjatKt2A/Proukn2Yrz61OBThOCKErc5w2/r1Fh37vbDv0Eah7pyNltrmacjwTvdw3JoR+WE4TA==
 
 "@noble/secp256k1@^1.6.3", "@noble/secp256k1@~1.7.0":
   version "1.7.0"
@@ -1664,9 +1669,9 @@ eslint@8.13.0:
     v8-compile-cache "^2.0.3"
 
 eslint@^8.9.0:
-  version "8.28.0"
-  resolved "https://registry.yarnpkg.com/eslint/-/eslint-8.28.0.tgz#81a680732634677cc890134bcdd9fdfea8e63d6e"
-  integrity sha512-S27Di+EVyMxcHiwDrFzk8dJYAaD+/5SoWKxL1ri/71CRHsnJnRDPNt2Kzj24+MT9FDupf4aqqyqPrvI8MvQ4VQ==
+  version "8.29.0"
+  resolved "https://registry.yarnpkg.com/eslint/-/eslint-8.29.0.tgz#d74a88a20fb44d59c51851625bc4ee8d0ec43f87"
+  integrity sha512-isQ4EEiyUjZFbEKvEGJKKGBwXtvXX+zJbkVKCgTuB9t/+jUBcy8avhkEwWJecI15BkRkOYmvIM5ynbhRjEkoeg==
   dependencies:
     "@eslint/eslintrc" "^1.3.3"
     "@humanwhocodes/config-array" "^0.11.6"
@@ -2243,9 +2248,9 @@ jayson@^3.4.4:
     ws "^7.4.5"
 
 js-sdsl@^4.1.4:
-  version "4.1.5"
-  resolved "https://registry.yarnpkg.com/js-sdsl/-/js-sdsl-4.1.5.tgz#1ff1645e6b4d1b028cd3f862db88c9d887f26e2a"
-  integrity sha512-08bOAKweV2NUC1wqTtf3qZlnpOX/R2DU9ikpjOHs0H+ibQv3zpncVQg6um4uYtRtrwIX8M4Nh3ytK4HGlYAq7Q==
+  version "4.2.0"
+  resolved "https://registry.yarnpkg.com/js-sdsl/-/js-sdsl-4.2.0.tgz#278e98b7bea589b8baaf048c20aeb19eb7ad09d0"
+  integrity sha512-dyBIzQBDkCqCu+0upx25Y2jGdbTGxE9fshMsCdK0ViOongpV+n5tXRcZY9v7CaVQ79AGS9KA1KHtojxiM7aXSQ==
 
 js-sha3@^0.8.0:
   version "0.8.0"

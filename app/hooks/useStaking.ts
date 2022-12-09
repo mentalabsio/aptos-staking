@@ -82,8 +82,19 @@ export const useStaking = () => {
     : null
 
   const { tokens: bankTokens, fetchTokens: fetchBankTokens } = useTokens(
-    bankAddress?.toString()
+    bankAddress?.toString(),
+    null,
+    null,
+    false
   )
+
+  // const addr = getResourceAccountAddress(
+  //   "0xb61101b5107b6864d4e93200ac2cca8147fd8a48ba1c6096f8251a60024fe32e",
+  //   Buffer.from("bank")
+  // )
+
+  // const { tokens } = useTokens(addr.toString(), null, null, false)
+  // console.log(tokens)
 
   useEffect(() => {
     ;(async () => {
@@ -264,6 +275,56 @@ export const useStaking = () => {
     }
   }
 
+  const unstakeAll = async (
+    items: {
+      collectionName: string
+      tokenName: string
+    }[]
+  ) => {
+    const tokenPropertyVersion = 0
+
+    try {
+      for (const item of items) {
+        const payload = {
+          type: "entry_function_payload",
+          function: `${modulePublisherAddress}::farm::unstake`,
+          type_arguments: [`${coinTypeAddress}`],
+          /**
+           * Arguments:
+           *
+           * creator_address: address,
+           * collection_name: String,
+           * token_name: String,
+           * property_version: u64,
+           * farm: address
+           */
+          arguments: [
+            creatorAddress,
+            item.collectionName,
+            item.tokenName,
+            tokenPropertyVersion,
+            farmAddress,
+          ],
+        }
+
+        const toastId = toast.loading("Sending transaction...")
+
+        const tx = await signAndSubmitTransaction(payload)
+        const result = (await client.waitForTransactionWithResult(
+          tx.hash
+        )) as any
+
+        toast.success("Success!", {
+          id: toastId,
+        })
+        console.log("success", result.success)
+        console.log("vm_status", result.vm_status)
+      }
+    } catch (e) {
+      toast.error("Something went wrong. " + e, {})
+    }
+  }
+
   const claim = async () => {
     const payload = {
       type: "entry_function_payload",
@@ -299,6 +360,7 @@ export const useStaking = () => {
     claim,
     stake,
     unstake,
+    unstakeAll,
     bankTokens,
     rewardVaultData,
     fetchBankTokens,
